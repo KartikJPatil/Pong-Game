@@ -1,0 +1,197 @@
+.pong-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-start;
+    min-height: 100vh;
+    background: radial-gradient(circle at 60% 40%, #171b45 70%, #0a0c20 100%);
+    font-family: 'Montserrat', 'Segoe UI', Arial, sans-serif;
+    padding: 2em 0 4em 0;
+  }
+  
+  /* Responsive, glowing, rounded game board */
+  .pong-board-area {
+    background: linear-gradient(135deg, #141e30 0%, #243b55 100%);
+    border: 5px solid #0ff;
+    border-radius: 28px;
+    box-shadow: 0 8px 32px #0ff5, 0 2px 8px #0008;
+    margin: 1.5em 0;
+    transition: box-shadow 0.25s;
+    position: relative;
+    max-width: 95vw;
+  }
+  
+  /* Top Controls Bar */
+  .pong-controls-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.1em;
+    justify-content: center;
+    align-items: center;
+    background: rgba(10,30,80,0.92);
+    color: #fff;
+    padding: 1em 1.5em;
+    border-radius: 16px;
+    margin: 1em 0 1.5em 0;
+    box-shadow: 0 2px 12px #0004;
+  }
+  
+  /* Sliders */
+  .pong-slider {
+    accent-color: #00ffd6;
+    margin: 0 0.7em;
+  }
+  
+  /* Button: Big, soft, colorful, tactile */
+  .pong-btn {
+    background: linear-gradient(90deg,#00ffd6 20%,#0ff 100%);
+    color: #111;
+    border: none;
+    border-radius: 12px;
+    padding: 0.8em 2.2em;
+    font-weight: bold;
+    font-size: 1.08em;
+    box-shadow: 0 2px 12px #0ff4;
+    margin: 0.7em 0.5em;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.12s;
+  }
+  .pong-btn:active {
+    transform: scale(0.96);
+    box-shadow: 0 1px 8px #0ff9;
+  }
+  
+  /* Scoreboard: Neon gradient text, shadow */
+  .pong-scoreboard {
+    color: #fff;
+    font-size: 2.5em;
+    margin: 1.2em 0 0.6em 0;
+    background: linear-gradient(90deg,#00f2fe 0%,#4facfe 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 4px 24px #0ff7;
+  }
+  
+  /* Leaderboard popup/panel */
+  .pong-leaderboard {
+    background: rgba(16,30,60,0.95);
+    color: #fff;
+    border-radius: 12px;
+    padding: 1em 1.5em;
+    box-shadow: 0 2px 10px #0ff2;
+    margin: 2.5em auto 1.5em auto;
+    max-width: 380px;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  
+  .pong-keyconfig {
+    background: #282e48;
+    color: #fff;
+    padding: 1em 0.8em 1.2em 0.8em;
+    border-radius: 14px;
+    margin: 1em auto 1.5em auto;
+    box-shadow: 0 2px 12px #0ff2;
+    max-width: 340px;
+  }
+  .pong-keyconfig input {
+    border-radius: 6px;
+    border: 1.5px solid #00ffd6;
+    background: #141e30;
+    color: #fff;
+    font-size: 1em;
+    width: 38px;
+    text-align: center;
+    margin-left: 0.7em;
+  }
+  
+  /* Large, tactile touch controls for mobile */
+  .pong-touch-btn {
+    width: 60px;
+    height: 80px;
+    margin: 4px 0;
+    opacity: 0.7;
+    font-size: 2.1em;
+    border-radius: 14px;
+    border: none;
+    background: linear-gradient(180deg,#0ff,#007a7a);
+    color: #fff;
+    box-shadow: 0 2px 8px #0ff4;
+    transition: background 0.1s, color 0.1s;
+  }
+  .pong-touch-btn:active {
+    background: #0ff;
+    color: #111;
+    opacity: 1;
+  }
+  
+  /* Modal for scoreboard, game over, leaderboard */
+  .pong-modal {
+    background: #222;
+    color: #fff;
+    border-radius: 18px;
+    padding: 2em 1em;
+    text-align: center;
+    max-width: 92vw;
+    margin: auto;
+    box-shadow: 0 10px 40px #000b;
+    transition: box-shadow 0.2s, transform 0.2s;
+  }
+  .pong-modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 9999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  /* Theme picker buttons */
+  .pong-theme-picker {
+    display: flex;
+    gap: 10px;
+    margin: 1em 0;
+  }
+  .pong-theme-btn {
+    width: 48px;
+    height: 32px;
+    border-radius: 10px;
+    border: 2px solid #0ff;
+    cursor: pointer;
+    outline: none;
+    margin-right: 8px;
+    transition: box-shadow 0.15s, border 0.15s;
+  }
+  .pong-theme-btn.selected,
+  .pong-theme-btn:focus {
+    box-shadow: 0 0 0 3px #0ff7;
+    border: 2.5px solid #0ff;
+  }
+  
+  @media (max-width: 600px) {
+    .pong-board-area {
+      width: 100vw !important;
+      height: 65vw !important;
+      min-width: 0 !important;
+    }
+    .pong-modal {
+      padding: 1.5em 0.4em;
+    }
+    .pong-scoreboard {
+      font-size: 1.6em;
+    }
+    .pong-btn {
+      padding: 0.7em 1.5em;
+      font-size: 0.97em;
+    }
+    .pong-leaderboard {
+      padding: 0.6em 0.4em;
+      font-size: 0.98em;
+    }
+  }
+  
+  /* Accessibility: focus ring for all buttons */
+  .pong-btn:focus, .pong-touch-btn:focus, .pong-theme-btn:focus {
+    outline: 2.5px solid #0ff;
+    outline-offset: 1.5px;
+  }
