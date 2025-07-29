@@ -14,7 +14,7 @@ import Modal from "react-modal";
 const WIDTH = 600, HEIGHT = 400, PADDLE_HEIGHT = 80, PADDLE_WIDTH = 12, BALL_SIZE = 14;
 const BASE_PADDLE_SPEED = 8, BASE_BALL_SPEED = 6;
 const TRAIL_LEN = 15;
-const SOCKET_URL = "http://localhost:4000";
+const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
 
 function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
 
