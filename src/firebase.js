@@ -2,14 +2,14 @@ import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, FacebookAuthProvider } from "firebase/auth";
 
 const firebaseConfig = {
-    apiKey: "",
-    authDomain: "pong-game-c58c9.firebaseapp.com",
-    projectId: "pong-game-c58c9",
-    storageBucket: "pong-game-c58c9.firebasestorage.app",
-    messagingSenderId: "156883431965",
-    appId: "1:156883431965:web:0747fbd26ad95ab8be8cf4",
-    measurementId: "G-TE580YY3XV"
-  };
+  apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
+  authDomain: process.env.REACT_APP_FIREBASE_AUTH_DOMAIN,
+  projectId: process.env.REACT_APP_FIREBASE_PROJECT_ID,
+  storageBucket: process.env.REACT_APP_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: process.env.REACT_APP_FIREBASE_MESSAGING_SENDER_ID,
+  appId: process.env.REACT_APP_FIREBASE_APP_ID,
+  measurementId: process.env.REACT_APP_FIREBASE_MEASUREMENT_ID,
+};
 
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
