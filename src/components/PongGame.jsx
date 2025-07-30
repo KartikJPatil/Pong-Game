@@ -119,12 +119,13 @@ export default function PongGame() {
     setSocket(s);
     setRoom(roomCode);
     setMultiplayer(true);
+    setTwoPlayer(false); // Disable local 2p if entering multiplayer!
     s.emit("join", { room: roomCode });
 
     s.on("players", count => setPlayers(count));
     s.on("host", () => { setIsHost(true); setSide("host"); });
     s.on("side", _side => setSide(_side));
-    s.on("full", () => { alert("Room is full"); s.disconnect(); setMultiplayer(false); });
+    s.on("full", () => { alert("Room is full"); s.disconnect(); setMultiplayer(false); setIsHost(false); setSide(""); });
 
     // Receive state from host if guest
     s.on("state_update", (state) => {
@@ -165,6 +166,7 @@ export default function PongGame() {
   useEffect(() => {
     if (!running || isPaused || winner) return;
     if (multiplayer && !isHost) return; // only host runs loop in multiplayer
+    // game loop runs for local modes (single and local 2p), and for host in multiplayer
 
     function gameLoop() {
       let lPad = leftPaddle, rPad = rightPaddle;
@@ -325,7 +327,6 @@ export default function PongGame() {
     }
     animationRef.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationRef.current);
-    // eslint-disable-next-line
   }, [leftPaddle, rightPaddle, ball, score, running, isPaused, touchDirL, touchDirR, keyMap, difficulty, powerUp, winner, winScore, isMuted, twoPlayer, theme, scores, multiplayer, isHost, socket, room]);
 
   // Multiplayer: Guest sends paddle input (left paddle)
@@ -526,6 +527,7 @@ export default function PongGame() {
         twoPlayer={twoPlayer && !multiplayer} setTwoPlayer={setTwoPlayer}
         showKeyConfig={showKeyConfig} setShowKeyConfig={setShowKeyConfig}
         winScore={winScore} setWinScore={setWinScore}
+        disabled={multiplayer && !isHost}
       />
       {showKeyConfig && (
         <div className="pong-keyconfig">
