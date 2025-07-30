@@ -90,6 +90,11 @@ export default function PongGame() {
   const [room, setRoom] = useState("");
   const [multiplayer, setMultiplayer] = useState(false);
   const [players, setPlayers] = useState(1);
+  const [side, setSide] = useState(""); // "host" or "guest"
+
+  // Chat
+  const [chatMessages, setChatMessages] = useState([]);
+  const [chatInput, setChatInput] = useState("");
 
   // Leaderboard modal
   const [showLeaderboard, setShowLeaderboard] = useState(false);
@@ -115,13 +120,15 @@ export default function PongGame() {
     setRoom(roomCode);
     setMultiplayer(true);
     s.emit("join", { room: roomCode });
+
     s.on("players", count => setPlayers(count));
-    s.on("host", () => setIsHost(true));
+    s.on("host", () => { setIsHost(true); setSide("host"); });
+    s.on("side", _side => setSide(_side));
     s.on("full", () => { alert("Room is full"); s.disconnect(); setMultiplayer(false); });
 
+    // Receive state from host if guest
     s.on("state_update", (state) => {
-      // Only for guest: update local game state to match host's
-      if (!isHost) {
+      if (side === "guest") {
         setLeftPaddle(state.leftPaddle);
         setRightPaddle(state.rightPaddle);
         setBall(state.ball);
@@ -133,9 +140,14 @@ export default function PongGame() {
       }
     });
 
+    // Host receives guest paddle input
     s.on("guest_paddle_input", (input) => {
-      // Only for host: update guest paddle
       if (isHost) setRightPaddle(input);
+    });
+
+    // Chat
+    s.on("chat", ({ msg, sender }) => {
+      setChatMessages(msgs => [...msgs, { msg, sender }]);
     });
 
     s.on("disconnect", () => {
@@ -144,6 +156,7 @@ export default function PongGame() {
       setIsHost(false);
       setPlayers(1);
       setRoom("");
+      setSide("");
       alert("Disconnected from multiplayer server.");
     });
   }
@@ -317,10 +330,19 @@ export default function PongGame() {
 
   // Multiplayer: Guest sends paddle input (left paddle)
   useEffect(() => {
-    if (multiplayer && socket && !isHost) {
+    if (multiplayer && socket && !isHost && side === "guest") {
       socket.emit("paddle_input", { room, input: leftPaddle });
     }
-  }, [leftPaddle, multiplayer, socket, isHost, room]);
+  }, [leftPaddle, multiplayer, socket, isHost, room, side]);
+
+  // Chat handling
+  function handleSendChat(e) {
+    e.preventDefault();
+    if (socket && chatInput.trim()) {
+      socket.emit("chat", { room, msg: chatInput.trim(), sender: side || "anon" });
+      setChatInput("");
+    }
+  }
 
   // Touch Controls
   function TouchControls({side}) {
@@ -573,6 +595,28 @@ export default function PongGame() {
         <Leaderboard scores={scores}/>
         <button className="pong-btn" style={{ marginTop: 10 }} onClick={() => setShowLeaderboard(true)}>Show Full Leaderboard</button>
       </div>
+
+      {/* --- CHAT UI --- */}
+      {multiplayer && (
+        <div className="pong-chat-container" style={{maxWidth: 400, margin: "1rem auto"}}>
+          <div style={{border: "1px solid #ccc", height: 120, overflowY: "auto", background: "#222", color: "#fff", padding: 8, fontSize: 14}}>
+            {chatMessages.map((c, i) => (
+              <div key={i}><b>{c.sender}:</b> {c.msg}</div>
+            ))}
+          </div>
+          <form onSubmit={handleSendChat} style={{display: "flex", gap: 4, marginTop: 2}}>
+            <input
+              placeholder="Type a message..."
+              value={chatInput}
+              onChange={e => setChatInput(e.target.value)}
+              style={{flex: 1, padding: 4}}
+              disabled={!multiplayer}
+            />
+            <button type="submit" disabled={!chatInput.trim() || !multiplayer}>Send</button>
+          </form>
+        </div>
+      )}
+
       <div style={{ color: "#aaa", margin: "1.5em 0 0 0", fontSize: "0.8em" }}>
         <span aria-label="Accessibility: game is keyboard and screen reader friendly">♿</span>
         &nbsp; Pong in React+Vite &copy; 2025
