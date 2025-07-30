@@ -102,6 +102,18 @@ export default function PongGame() {
   // For local keyboard
   const keys = useRef({});
   const animationRef = useRef();
+  const boardAreaRef = useRef();
+  const [boardRect, setBoardRect] = useState(null);
+
+  // Keep boardRect updated for touch controls
+  useEffect(() => {
+    function updateRect() {
+      if (boardAreaRef.current) setBoardRect(boardAreaRef.current.getBoundingClientRect());
+    }
+    updateRect();
+    window.addEventListener("resize", updateRect);
+    return () => window.removeEventListener("resize", updateRect);
+  }, [/* no deps needed, fires once + on resize */]);
 
   // Key Handling
   useEffect(() => {
@@ -166,7 +178,6 @@ export default function PongGame() {
   useEffect(() => {
     if (!running || isPaused || winner) return;
     if (multiplayer && !isHost) return; // only host runs loop in multiplayer
-    // game loop runs for local modes (single and local 2p), and for host in multiplayer
 
     function gameLoop() {
       let lPad = leftPaddle, rPad = rightPaddle;
@@ -345,13 +356,22 @@ export default function PongGame() {
     }
   }
 
-  // Touch Controls
-  function TouchControls({side}) {
+  // Touch Controls (placed just outside the SVG court, vertically centered)
+  function TouchControls({side, boardRect}) {
+    if (!boardRect) return null;
+    const btnStyle = {
+      position: "fixed",
+      left: side === "left"
+        ? boardRect.left - 60
+        : boardRect.left + boardRect.width + 10,
+      top: boardRect.top + boardRect.height/2 - 60,
+      zIndex: 10,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center"
+    };
     return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "flex-start",
-        position: "absolute", left: side === "left" ? 0 : WIDTH-60, top: 90, zIndex: 10
-      }}>
+      <div style={btnStyle}>
         <button
           className="pong-touch-btn"
           onTouchStart={() => side==="left"?setTouchDirL(-1):setTouchDirR(-1)}
@@ -534,7 +554,7 @@ export default function PongGame() {
           <KeyConfig keyMap={keyMap} setKeyMap={setKeyMap}/>
         </div>
       )}
-      <div className="pong-board-area" style={{ width: svgW, height: svgH, maxWidth: "100%" }}>
+      <div ref={boardAreaRef} className="pong-board-area" style={{ width: svgW, height: svgH, maxWidth: "100%", position: "relative" }}>
         <svg
           width={svgW}
           height={svgH}
@@ -556,10 +576,10 @@ export default function PongGame() {
           {/* Power-up */}
           {powerUp && <PowerUp x={powerUp.x} y={powerUp.y} size={powerUp.size} type={powerUp.type}/>}
         </svg>
-        {/* Touch Controls */}
-        <TouchControls side="left"/>
-        {!multiplayer && twoPlayer && <TouchControls side="right"/>}
       </div>
+      {/* Touch Controls OUTSIDE the court, always visible, vertically centered */}
+      <TouchControls side="left" boardRect={boardRect}/>
+      {twoPlayer && !multiplayer && <TouchControls side="right" boardRect={boardRect}/>}
       <div style={{ color: t.fg, marginTop: 10, fontSize: "1em" }}>
         <strong>Controls:</strong> <br />
         Left: {keyMap.leftUp.toUpperCase()}/{keyMap.leftDown.toUpperCase()} &nbsp;&nbsp;|&nbsp;&nbsp;
