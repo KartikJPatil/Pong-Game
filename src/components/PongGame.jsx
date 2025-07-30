@@ -358,13 +358,14 @@ export default function PongGame() {
     }
   }
 
-  // Touch Controls (always visible, positioned outside the SVG court, vertically centered & visible)
+  // Touch Controls (stick exactly to the edge of the court)
   function TouchControls({side, boardRect}) {
     if (!boardRect) return null;
-    // Clamp to viewport
+    const buttonWidth = 60;
     let left = side === "left"
-      ? Math.max(8, boardRect.left - 60)
-      : Math.min(window.innerWidth - 52, boardRect.left + boardRect.width + 10);
+      ? boardRect.left - buttonWidth
+      : boardRect.left + boardRect.width;
+    // Clamp top to always be in the viewport
     let top = Math.min(
       window.innerHeight - 120,
       Math.max(8, boardRect.top + boardRect.height / 2 - 60)
@@ -377,7 +378,7 @@ export default function PongGame() {
       display: "flex",
       flexDirection: "column",
       alignItems: "center",
-      background: "rgba(30,30,30,0.85)",
+      background: "rgba(30,30,30,0.7)",
       borderRadius: 8,
       boxShadow: "0 2px 8px #0006",
       padding: 2
@@ -386,13 +387,13 @@ export default function PongGame() {
       <div style={btnStyle}>
         <button
           className="pong-touch-btn"
-          style={{ width: 40, height: 40, fontSize: 24, margin: 2 }}
+          style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
           onTouchStart={() => side==="left"?setTouchDirL(-1):setTouchDirR(-1)}
           onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
         >▲</button>
         <button
           className="pong-touch-btn"
-          style={{ width: 40, height: 40, fontSize: 24, margin: 2 }}
+          style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
           onTouchStart={() => side==="left"?setTouchDirL(1):setTouchDirR(1)}
           onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
         >▼</button>
@@ -591,7 +592,7 @@ export default function PongGame() {
           {powerUp && <PowerUp x={powerUp.x} y={powerUp.y} size={powerUp.size} type={powerUp.type}/>}
         </svg>
       </div>
-      {/* Touch Controls OUTSIDE the court, always visible, vertically centered */}
+      {/* Touch Controls stick to the edge of the court */}
       <TouchControls side="left" boardRect={boardRect}/>
       {twoPlayer && !multiplayer && <TouchControls side="right" boardRect={boardRect}/>}
       <div style={{ color: t.fg, marginTop: 10, fontSize: "1em" }}>
