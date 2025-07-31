@@ -358,49 +358,52 @@ export default function PongGame() {
     }
   }
 
-  // Touch Controls (stick exactly to the edge of the court)
-  function TouchControls({side, boardRect}) {
-    if (!boardRect) return null;
-    const buttonWidth = 60;
-    let left = side === "left"
-      ? boardRect.left - buttonWidth
-      : boardRect.left + boardRect.width;
-    // Clamp top to always be in the viewport
-    let top = Math.min(
-      window.innerHeight - 120,
-      Math.max(8, boardRect.top + boardRect.height / 2 - 60)
-    );
-    const btnStyle = {
-      position: "fixed",
-      left: left,
-      top: top,
-      zIndex: 99,
-      display: "flex",
-      flexDirection: "column",
-      alignItems: "center",
-      background: "rgba(30,30,30,0.7)",
-      borderRadius: 8,
-      boxShadow: "0 2px 8px #0006",
-      padding: 2
-    };
-    return (
-      <div style={btnStyle}>
-        <button
-          className="pong-touch-btn"
-          style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
-          onTouchStart={() => side==="left"?setTouchDirL(-1):setTouchDirR(-1)}
-          onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
-        >▲</button>
-        <button
-          className="pong-touch-btn"
-          style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
-          onTouchStart={() => side==="left"?setTouchDirL(1):setTouchDirR(1)}
-          onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
-        >▼</button>
-      </div>
-    );
-  }
+ function TouchControls({ side, boardRect }) {
+  if (!boardRect) return null;
+  const buttonWidth = 60; // matches your CSS
 
+  // FLUSH with the court edge:
+  let left = side === "left"
+    ? boardRect.left // flush left
+    : boardRect.left + boardRect.width - buttonWidth; // flush right
+
+  let top = Math.min(
+    window.innerHeight - 120,
+    Math.max(8, boardRect.top + boardRect.height / 2 - 60)
+  );
+
+  const btnStyle = {
+    position: "fixed",
+    left: left,
+    top: top,
+    zIndex: 99,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    background: "rgba(30,30,30,0.7)",
+    borderRadius: 8,
+    boxShadow: "0 2px 8px #0006",
+    padding: 2
+  };
+
+  return (
+    <div style={btnStyle}>
+      <button
+        className="pong-touch-btn"
+        style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
+        onTouchStart={() => side==="left"?setTouchDirL(-1):setTouchDirR(-1)}
+        onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
+      >▲</button>
+      <button
+        className="pong-touch-btn"
+        style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
+        onTouchStart={() => side==="left"?setTouchDirL(1):setTouchDirR(1)}
+        onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
+      >▼</button>
+    </div>
+  );
+}
+  
   // Start/Restart
   function handleStart() {
     setScore({left:0, right:0});
