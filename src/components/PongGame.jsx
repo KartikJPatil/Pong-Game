@@ -358,18 +358,20 @@ export default function PongGame() {
     }
   }
 
- function TouchControls({ side, boardRect }) {
+function TouchControls({ side, boardRect }) {
   if (!boardRect) return null;
-  const buttonWidth = 60; // matches your CSS
-
-  // FLUSH with the court edge:
+  const buttonWidth = 60, buttonHeight = 80;
+  
+  // For left, flush to the court's left edge, but not off-screen
+  // For right, flush to the court's right edge, but not off-screen
   let left = side === "left"
-    ? boardRect.left // flush left
-    : boardRect.left + boardRect.width - buttonWidth; // flush right
+    ? Math.max(0, boardRect.left)
+    : Math.min(window.innerWidth - buttonWidth, boardRect.left + boardRect.width - buttonWidth);
 
+  // Vertically center, but never off top/bottom
   let top = Math.min(
-    window.innerHeight - 120,
-    Math.max(8, boardRect.top + boardRect.height / 2 - 60)
+    window.innerHeight - buttonHeight * 2,
+    Math.max(0, boardRect.top + boardRect.height / 2 - buttonHeight)
   );
 
   const btnStyle = {
@@ -390,15 +392,61 @@ export default function PongGame() {
     <div style={btnStyle}>
       <button
         className="pong-touch-btn"
-        style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
-        onTouchStart={() => side==="left"?setTouchDirL(-1):setTouchDirR(-1)}
-        onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
+        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
+        onTouchStart={() => side === "left" ? setTouchDirL(-1) : setTouchDirR(-1)}
+        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
       >▲</button>
       <button
         className="pong-touch-btn"
-        style={{ width: 60, height: 80, fontSize: 24, margin: 2 }}
-        onTouchStart={() => side==="left"?setTouchDirL(1):setTouchDirR(1)}
-        onTouchEnd={() => side==="left"?setTouchDirL(0):setTouchDirR(0)}
+        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
+        onTouchStart={() => side === "left" ? setTouchDirL(1) : setTouchDirR(1)}
+        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
+      >▼</button>
+    </div>
+  );
+}function TouchControls({ side, boardRect }) {
+  if (!boardRect) return null;
+  const buttonWidth = 60, buttonHeight = 80;
+  
+  // For left, flush to the court's left edge, but not off-screen
+  // For right, flush to the court's right edge, but not off-screen
+  let left = side === "left"
+    ? Math.max(0, boardRect.left)
+    : Math.min(window.innerWidth - buttonWidth, boardRect.left + boardRect.width - buttonWidth);
+
+  // Vertically center, but never off top/bottom
+  let top = Math.min(
+    window.innerHeight - buttonHeight * 2,
+    Math.max(0, boardRect.top + boardRect.height / 2 - buttonHeight)
+  );
+
+  const btnStyle = {
+    position: "fixed",
+    left: left,
+    top: top,
+    zIndex: 99,
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    background: "rgba(30,30,30,0.7)",
+    borderRadius: 8,
+    boxShadow: "0 2px 8px #0006",
+    padding: 2
+  };
+
+  return (
+    <div style={btnStyle}>
+      <button
+        className="pong-touch-btn"
+        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
+        onTouchStart={() => side === "left" ? setTouchDirL(-1) : setTouchDirR(-1)}
+        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
+      >▲</button>
+      <button
+        className="pong-touch-btn"
+        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
+        onTouchStart={() => side === "left" ? setTouchDirL(1) : setTouchDirR(1)}
+        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
       >▼</button>
     </div>
   );
@@ -596,7 +644,7 @@ export default function PongGame() {
         </svg>
       </div>
       {/* Touch Controls stick to the edge of the court */}
-      <TouchControls side="left" boardRect={boardRect}/>
+     <TouchControls side="left" boardRect={boardRect}/>
       {twoPlayer && !multiplayer && <TouchControls side="right" boardRect={boardRect}/>}
       <div style={{ color: t.fg, marginTop: 10, fontSize: "1em" }}>
         <strong>Controls:</strong> <br />
