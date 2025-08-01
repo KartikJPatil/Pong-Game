@@ -11,8 +11,9 @@
   },
   "dependencies": {
     "firebase": "^11.10.0",
-    "react": "^19.1.0",
-    "react-dom": "^19.1.0",
+    "modal": "^0.3.15",
+    "react": "19.1.1",
+    "react-dom": "19.1.1",
     "react-modal": "^3.16.3",
     "socket.io-client": "^4.8.1"
   },
