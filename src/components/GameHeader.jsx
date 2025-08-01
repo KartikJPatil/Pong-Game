@@ -35,42 +35,61 @@ export default function GameHeader({ theme, setTheme }) {
         border: "1px solid rgba(255,255,255,0.1)"
       }}>
         <span style={{ color: "#0ff", fontWeight: "bold", marginRight: "10px", alignSelf: "center" }}>Theme:</span>
-        {Object.keys(themes).map(thm => (
-          <button
-            key={thm}
-            style={{
-              background: theme === thm 
-                ? `linear-gradient(145deg, ${themes[thm].bg}, ${themes[thm].fg}20)` 
-                : themes[thm].bg,
-              color: themes[thm].fg,
-              border: theme === thm ? "2px solid #0ff" : "1px solid #555",
-              padding: "8px 16px",
-              borderRadius: "20px",
-              cursor: "pointer",
-              fontWeight: theme === thm ? "bold" : "normal",
-              fontSize: "14px",
-              transition: "all 0.3s ease",
-              boxShadow: theme === thm ? "0 0 15px rgba(0,255,255,0.5)" : "0 2px 5px rgba(0,0,0,0.3)",
-              transform: theme === thm ? "scale(1.05)" : "scale(1)"
-            }}
-            onClick={() => setTheme(thm)}
-            aria-label={`Switch to ${thm} theme`}
-            onMouseEnter={(e) => {
-              if (theme !== thm) {
-                e.target.style.transform = "scale(1.02)";
-                e.target.style.boxShadow = "0 4px 8px rgba(0,0,0,0.4)";
-              }
-            }}
-            onMouseLeave={(e) => {
-              if (theme !== thm) {
-                e.target.style.transform = "scale(1)";
-                e.target.style.boxShadow = "0 2px 5px rgba(0,0,0,0.3)";
-              }
-            }}
-          >
-            {thm.charAt(0).toUpperCase() + thm.slice(1)}
-          </button>
-        ))}
+        {Object.keys(themes).map(thm => {
+          // Get better text colors for each theme
+          const getTextColor = (themeName) => {
+            switch(themeName) {
+              case 'classic': return "#0ff"; // Cyan text for classic
+              case 'retro': return "#0f0";   // Green text for retro
+              case 'neon': return "#f0f";    // Magenta text for neon
+              case 'dark': return "#eee";    // Light gray text for dark
+              default: return "#fff";
+            }
+          };
+
+          const textColor = getTextColor(thm);
+          const isSelected = theme === thm;
+
+          return (
+            <button
+              key={thm}
+              style={{
+                background: isSelected 
+                  ? `linear-gradient(145deg, ${themes[thm].bg}, rgba(0,255,255,0.2))` 
+                  : themes[thm].bg,
+                color: textColor, // Use the better text color
+                border: isSelected ? "2px solid #0ff" : "1px solid #555",
+                padding: "8px 16px",
+                borderRadius: "20px",
+                cursor: "pointer",
+                fontWeight: isSelected ? "bold" : "normal",
+                fontSize: "14px",
+                transition: "all 0.3s ease",
+                boxShadow: isSelected ? "0 0 15px rgba(0,255,255,0.5)" : "0 2px 5px rgba(0,0,0,0.3)",
+                transform: isSelected ? "scale(1.05)" : "scale(1)",
+                textShadow: "0 1px 2px rgba(0,0,0,0.8)" // Add text shadow for better readability
+              }}
+              onClick={() => setTheme(thm)}
+              aria-label={`Switch to ${thm} theme`}
+              onMouseEnter={(e) => {
+                if (theme !== thm) {
+                  e.target.style.transform = "scale(1.02)";
+                  e.target.style.boxShadow = "0 4px 8px rgba(0,0,0,0.4)";
+                  e.target.style.color = "#0ff"; // Highlight color on hover
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (theme !== thm) {
+                  e.target.style.transform = "scale(1)";
+                  e.target.style.boxShadow = "0 2px 5px rgba(0,0,0,0.3)";
+                  e.target.style.color = textColor; // Restore original color
+                }
+              }}
+            >
+              {thm.charAt(0).toUpperCase() + thm.slice(1)}
+            </button>
+          );
+        })}
       </div>
     );
   }
