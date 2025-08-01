@@ -8,49 +8,35 @@ export default function TouchControls({
   touchDirL,
   touchDirR,
   setTouchDirL,
-  setTouchDirR 
+  setTouchDirR,
+  running,
+  winner
 }) {
-  if (!boardRect) return null;
-  
   const isTwoPlayer = twoPlayer && !multiplayer;
   const buttonWidth = 70;
   const buttonHeight = 60;
-  const buttonSpacing = 5;
+  const buttonSpacing = 8;
   
   let containerStyle = {
-    position: "fixed",
-    zIndex: 1000,
     display: "flex",
     gap: buttonSpacing + "px",
-    padding: "10px",
-    borderRadius: "12px",
+    padding: "12px",
+    borderRadius: "15px",
     background: "linear-gradient(145deg, rgba(20,20,20,0.95), rgba(40,40,40,0.95))",
-    backdropFilter: "blur(8px)",
-    border: "1px solid rgba(255,255,255,0.1)",
-    boxShadow: "0 4px 20px rgba(0,0,0,0.4)"
+    backdropFilter: "blur(10px)",
+    border: "2px solid rgba(0,255,255,0.3)",
+    boxShadow: "0 8px 25px rgba(0,0,0,0.6)"
   };
 
-  // Position logic for different modes
   if (isTwoPlayer) {
-    // Two player mode: place on sides of the court
-    if (player === "left") {
-      containerStyle.left = Math.max(10, boardRect.left - buttonWidth - 20) + "px";
-      containerStyle.top = (boardRect.top + boardRect.height / 2 - buttonHeight) + "px";
-      containerStyle.flexDirection = "column";
-    } else {
-      containerStyle.right = Math.max(10, window.innerWidth - boardRect.right - buttonWidth - 20) + "px";
-      containerStyle.top = (boardRect.top + boardRect.height / 2 - buttonHeight) + "px";
-      containerStyle.flexDirection = "column";
-    }
+    // Two Player Mode: Simple vertical layout
+    containerStyle.flexDirection = "column";
   } else {
-    // Single player mode: place below the court, centered
-    containerStyle.left = "50%";
-    containerStyle.transform = "translateX(-50%)";
-    containerStyle.top = Math.min(
-      window.innerHeight - buttonHeight - 20,
-      boardRect.bottom + 20
-    ) + "px";
+    // Single Player Mode: Horizontal layout between buttons and leaderboard
+    containerStyle.margin = "20px auto";
     containerStyle.flexDirection = "row";
+    containerStyle.justifyContent = "center";
+    containerStyle.maxWidth = "200px";
   }
 
   const handleTouchStart = (direction) => (e) => {
@@ -76,11 +62,11 @@ export default function TouchControls({
   const buttonStyle = {
     width: buttonWidth + "px",
     height: buttonHeight + "px",
-    fontSize: "24px",
+    fontSize: "28px",
     fontWeight: "bold",
     background: "linear-gradient(145deg, #0ff, #0aa)",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "12px",
     color: "#000",
     cursor: "pointer",
     userSelect: "none",
@@ -88,14 +74,16 @@ export default function TouchControls({
     alignItems: "center",
     justifyContent: "center",
     transition: "all 0.2s ease",
-    boxShadow: "0 2px 8px rgba(0,255,255,0.3)"
+    boxShadow: "0 4px 12px rgba(0,255,255,0.4)",
+    textShadow: "0 1px 2px rgba(0,0,0,0.3)"
   };
 
   const activeButtonStyle = {
     ...buttonStyle,
     background: "linear-gradient(145deg, #ff0, #aa0)",
     transform: "scale(0.95)",
-    boxShadow: "0 1px 4px rgba(255,255,0,0.5)"
+    boxShadow: "0 2px 8px rgba(255,255,0,0.6)",
+    color: "#000"
   };
 
   const currentTouchDir = player === "left" || !isTwoPlayer ? touchDirL : touchDirR;
@@ -109,9 +97,11 @@ export default function TouchControls({
         onMouseDown={handleTouchStart(-1)}
         onMouseUp={handleTouchEnd}
         onMouseLeave={handleTouchEnd}
+        aria-label={`Move ${player || 'left'} paddle up`}
       >
-        {isTwoPlayer && containerStyle.flexDirection === "column" ? "▲" : "⬆"}
+        ▲
       </button>
+      
       <button
         style={currentTouchDir === 1 ? activeButtonStyle : buttonStyle}
         onTouchStart={handleTouchStart(1)}
@@ -119,8 +109,9 @@ export default function TouchControls({
         onMouseDown={handleTouchStart(1)}
         onMouseUp={handleTouchEnd}
         onMouseLeave={handleTouchEnd}
+        aria-label={`Move ${player || 'left'} paddle down`}
       >
-        {isTwoPlayer && containerStyle.flexDirection === "column" ? "▼" : "⬇"}
+        ▼
       </button>
     </div>
   );
