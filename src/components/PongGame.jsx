@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from "react";
+import React, { useRef, useEffect, useState, useCallback } from "react";
 import { io } from "socket.io-client";
 import "./PongGame.css";
 import Paddle from "./Paddle";
@@ -17,6 +17,13 @@ const TRAIL_LEN = 15;
 const SOCKET_URL = import.meta.env.VITE_BACKEND_URL || "http://localhost:4000";
 
 function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+// NEW: Function to calculate ball speed based on difficulty
+function getBallSpeed(difficulty) {
+  // Difficulty 1 = very slow, 5 = normal, 10 = very fast
+  const speedMultiplier = 0.3 + (difficulty * 0.14); // Range: 0.44 to 1.7
+  return BASE_BALL_SPEED * speedMultiplier;
+}
 
 function playBeep(f, d, v, mute) {
   if (mute) return;
@@ -56,24 +63,34 @@ export default function PongGame() {
   // State
   const [leftPaddle, setLeftPaddle] = useState(HEIGHT/2 - PADDLE_HEIGHT/2);
   const [rightPaddle, setRightPaddle] = useState(HEIGHT/2 - PADDLE_HEIGHT/2);
-  const [ball, setBall] = useState({
-    x: WIDTH/2 - BALL_SIZE/2, y: HEIGHT/2 - BALL_SIZE/2,
-    dx: BASE_BALL_SPEED, dy: BASE_BALL_SPEED, speed: BASE_BALL_SPEED
+  const [difficulty, setDifficulty] = useState(5);
+  
+  // UPDATED: Ball state now uses difficulty-based speed
+  const [ball, setBall] = useState(() => {
+    const initialSpeed = getBallSpeed(5); // Default difficulty
+    return {
+      x: WIDTH/2 - BALL_SIZE/2, 
+      y: HEIGHT/2 - BALL_SIZE/2,
+      dx: initialSpeed, 
+      dy: initialSpeed, 
+      speed: initialSpeed
+    };
   });
+  
   const [score, setScore] = useState({ left: 0, right: 0 });
   const [winner, setWinner] = useState("");
   const [running, setRunning] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [difficulty, setDifficulty] = useState(5);
   const [theme, setTheme] = useState("classic");
   const [isMuted, setIsMuted] = useState(false);
-  const [twoPlayer, setTwoPlayer] = useState(false); // For local 2p only; multiplayer disables this
+  const [twoPlayer, setTwoPlayer] = useState(false);
   const [showKeyConfig, setShowKeyConfig] = useState(false);
   const [keyMap, setKeyMap] = useState({
     leftUp: "w", leftDown: "s", rightUp: "ArrowUp", rightDown: "ArrowDown"
   });
   // Touch
-  const [touchDirL, setTouchDirL] = useState(0), [touchDirR, setTouchDirR] = useState(0);
+  const [touchDirL, setTouchDirL] = useState(0);
+  const [touchDirR, setTouchDirR] = useState(0);
   // Ball trail
   const [trail, setTrail] = useState([]);
   // Power-ups
@@ -99,7 +116,7 @@ export default function PongGame() {
   // Leaderboard modal
   const [showLeaderboard, setShowLeaderboard] = useState(false);
 
-  // For local keyboard
+  // For local keyboard - using useRef to maintain current state
   const keys = useRef({});
   const animationRef = useRef();
   const boardAreaRef = useRef();
@@ -115,13 +132,30 @@ export default function PongGame() {
     return () => window.removeEventListener("resize", updateRect);
   }, []);
 
-  // Key Handling
+  // Key Handling - Fixed to properly capture key states
   useEffect(() => {
-    const down = e => { keys.current[e.key] = true; };
-    const up = e => { keys.current[e.key] = false; };
+    const down = (e) => { 
+      e.preventDefault(); // Prevent default behavior
+      keys.current[e.key] = true; 
+      // Also handle arrow keys specifically
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        keys.current[e.key] = true;
+      }
+    };
+    const up = (e) => { 
+      e.preventDefault();
+      keys.current[e.key] = false; 
+      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+        keys.current[e.key] = false;
+      }
+    };
+    
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
-    return () => { window.removeEventListener("keydown", down); window.removeEventListener("keyup", up); };
+    return () => { 
+      window.removeEventListener("keydown", down); 
+      window.removeEventListener("keyup", up); 
+    };
   }, []);
 
   // Multiplayer: join/create room, setup socket
@@ -174,37 +208,78 @@ export default function PongGame() {
     });
   }
 
-  // Game Loop
+  // Paddle movement function - separated for clarity
+  const updatePaddles = useCallback(() => {
+    let lPad = leftPaddle;
+    let rPad = rightPaddle;
+    
+    // Check keyboard input
+    const lUp = keys.current[keyMap.leftUp] || keys.current[keyMap.leftUp.toLowerCase()] || keys.current[keyMap.leftUp.toUpperCase()];
+    const lDn = keys.current[keyMap.leftDown] || keys.current[keyMap.leftDown.toLowerCase()] || keys.current[keyMap.leftDown.toUpperCase()];
+    const rUp = keys.current[keyMap.rightUp] || keys.current[keyMap.rightUp.toLowerCase()] || keys.current[keyMap.rightUp.toUpperCase()];
+    const rDn = keys.current[keyMap.rightDown] || keys.current[keyMap.rightDown.toLowerCase()] || keys.current[keyMap.rightDown.toUpperCase()];
+    
+    // Check touch input
+    const lUpTouch = touchDirL === -1;
+    const lDnTouch = touchDirL === 1;
+    const rUpTouch = touchDirR === -1;
+    const rDnTouch = touchDirR === 1;
+    
+    const paddleSpeed = BASE_PADDLE_SPEED + (difficulty - 5);
+    
+    // Left paddle movement
+    if (lUp || lUpTouch) {
+      lPad -= paddleSpeed;
+    }
+    if (lDn || lDnTouch) {
+      lPad += paddleSpeed;
+    }
+    
+    // Right paddle movement
+    if (multiplayer) {
+      // In multiplayer, right paddle is controlled by guest or host depending on side
+      if (isHost) {
+        // Host controls left paddle, guest input updates right paddle via socket
+      } else {
+        // Guest controls left paddle, send to host
+      }
+    } else if (twoPlayer) {
+      if (rUp || rUpTouch) {
+        rPad -= paddleSpeed;
+      }
+      if (rDn || rDnTouch) {
+        rPad += paddleSpeed;
+      }
+    } else {
+      // AI for right paddle
+      const aiCenter = rPad + PADDLE_HEIGHT/2;
+      const aiTarget = ball.y + BALL_SIZE/2 + (Math.random()*8-4);
+      const aiSpeed = BASE_PADDLE_SPEED + (difficulty*1.5);
+      if (aiCenter < aiTarget - 8) {
+        rPad += aiSpeed;
+      } else if (aiCenter > aiTarget + 8) {
+        rPad -= aiSpeed;
+      }
+    }
+    
+    // Clamp paddles to screen bounds
+    lPad = clamp(lPad, 0, HEIGHT - PADDLE_HEIGHT);
+    rPad = clamp(rPad, 0, HEIGHT - PADDLE_HEIGHT);
+    
+    return { lPad, rPad };
+  }, [leftPaddle, rightPaddle, ball.y, difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, twoPlayer]);
+
+  // Game Loop - Updated with difficulty-based ball speed
   useEffect(() => {
     if (!running || isPaused || winner) return;
     if (multiplayer && !isHost) return; // only host runs loop in multiplayer
 
     function gameLoop() {
-      let lPad = leftPaddle, rPad = rightPaddle;
+      // Update paddles
+      const { lPad, rPad } = updatePaddles();
+      
       let {x, y, dx, dy, speed} = ball;
-      // Paddle movement (keyboard/touch)
-      let lUp = keys.current[keyMap.leftUp] || touchDirL === -1, lDn = keys.current[keyMap.leftDown] || touchDirL === 1;
-      let rUp = keys.current[keyMap.rightUp] || touchDirR === -1, rDn = keys.current[keyMap.rightDown] || touchDirR === 1;
-      let paddleSpeed = BASE_PADDLE_SPEED + (difficulty-5);
-      if (lUp) lPad -= paddleSpeed;
-      if (lDn) lPad += paddleSpeed;
-
-      if (multiplayer) {
-        // Host: right paddle is controlled by guest's paddle input (already setRightPaddle via guest_paddle_input)
-      } else if (twoPlayer) {
-        if (rUp) rPad -= paddleSpeed;
-        if (rDn) rPad += paddleSpeed;
-      } else {
-        // AI: follow ball
-        let aiCenter = rPad + PADDLE_HEIGHT/2;
-        let aiTarget = y + BALL_SIZE/2 + (Math.random()*8-4);
-        let aiSpeed = BASE_PADDLE_SPEED + (difficulty*1.5);
-        if (aiCenter < aiTarget - 8) rPad += aiSpeed;
-        else if (aiCenter > aiTarget + 8) rPad -= aiSpeed;
-      }
-      lPad = clamp(lPad, 0, HEIGHT-PADDLE_HEIGHT);
-      rPad = clamp(rPad, 0, HEIGHT-PADDLE_HEIGHT);
-
+      
       // Ball movement
       x += dx;
       y += dy;
@@ -222,6 +297,7 @@ export default function PongGame() {
         dy = -dy;
         playBeep(800, 60, 0.08, isMuted);
       }
+      
       // Collisions: Left paddle
       if (
         x <= PADDLE_WIDTH &&
@@ -231,12 +307,14 @@ export default function PongGame() {
         x = PADDLE_WIDTH;
         let impact = (y + BALL_SIZE/2 - (lPad + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
         let angle = impact * Math.PI/4;
-        let speedup = 1.08;
-        curSpeed *= speedup; // speed up
+        // UPDATED: Difficulty-based speedup
+        let speedup = 1.05 + (difficulty - 5) * 0.005; // More aggressive speedup at higher difficulties
+        curSpeed *= speedup;
         dx = Math.abs(curSpeed * Math.cos(angle));
         dy = curSpeed * Math.sin(angle);
         playBeep(400, 80, 0.08, isMuted);
       }
+      
       // Collisions: Right paddle
       if (
         x+BALL_SIZE >= WIDTH-PADDLE_WIDTH &&
@@ -246,7 +324,8 @@ export default function PongGame() {
         x = WIDTH-PADDLE_WIDTH-BALL_SIZE;
         let impact = (y + BALL_SIZE/2 - (rPad + PADDLE_HEIGHT/2)) / (PADDLE_HEIGHT/2);
         let angle = impact * Math.PI/4;
-        let speedup = 1.08;
+        // UPDATED: Difficulty-based speedup
+        let speedup = 1.05 + (difficulty - 5) * 0.005;
         curSpeed *= speedup;
         dx = -Math.abs(curSpeed * Math.cos(angle));
         dy = curSpeed * Math.sin(angle);
@@ -284,14 +363,18 @@ export default function PongGame() {
         playBeep(800, 300, 0.18, isMuted);
         if (newScore.left >= winScore) win = "Left";
       }
+      
       if (scored) {
+        // UPDATED: Reset ball with difficulty-based speed
+        const resetSpeed = getBallSpeed(difficulty);
         setLeftPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
         setRightPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
         setBall({
-          x: WIDTH/2-BALL_SIZE/2, y: HEIGHT/2-BALL_SIZE/2,
-          dx: (Math.random()>0.5?1:-1)*BASE_BALL_SPEED,
-          dy: (Math.random()>0.5?1:-1)*BASE_BALL_SPEED,
-          speed: BASE_BALL_SPEED
+          x: WIDTH/2-BALL_SIZE/2, 
+          y: HEIGHT/2-BALL_SIZE/2,
+          dx: (Math.random()>0.5?1:-1)*resetSpeed,
+          dy: (Math.random()>0.5?1:-1)*resetSpeed,
+          speed: resetSpeed
         });
         setScore(newScore);
         setTrail([]);
@@ -313,10 +396,12 @@ export default function PongGame() {
         return;
       }
 
+      // Update state
       setLeftPaddle(lPad);
       setRightPaddle(rPad);
       setBall({ x, y, dx, dy, speed: curSpeed });
 
+      // Power-up spawning
       if (!powerUp && (powerUpTimer > 200 + Math.random()*400)) {
         let px = Math.random()*(WIDTH-80)+40, py = Math.random()*(HEIGHT-60)+30;
         let types = ["enlarge","shrink","multi"];
@@ -332,15 +417,16 @@ export default function PongGame() {
       if (multiplayer && isHost && socket) {
         socket.emit("sync_state", { room, state: {
           leftPaddle: lPad, rightPaddle: rPad, ball: { x, y, dx, dy, speed: curSpeed }, score: newScore,
-          powerUp, trail, winner, running
+          powerUp, trail, winner, running: true
         } });
       }
 
       animationRef.current = requestAnimationFrame(gameLoop);
     }
+    
     animationRef.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [leftPaddle, rightPaddle, ball, score, running, isPaused, touchDirL, touchDirR, keyMap, difficulty, powerUp, winner, winScore, isMuted, twoPlayer, theme, scores, multiplayer, isHost, socket, room]);
+  }, [running, isPaused, winner, multiplayer, isHost, updatePaddles, ball, score, powerUp, powerUpTimer, winScore, isMuted, scores, socket, room, trail, difficulty]);
 
   // Multiplayer: Guest sends paddle input (left paddle)
   useEffect(() => {
@@ -358,108 +444,83 @@ export default function PongGame() {
     }
   }
 
-function TouchControls({ side, boardRect }) {
-  if (!boardRect) return null;
-  const buttonWidth = 60, buttonHeight = 80;
+  // Touch Controls Component - Fixed touch event handling
+  function TouchControls({ side, boardRect }) {
+    if (!boardRect) return null;
+    const buttonWidth = 60, buttonHeight = 80;
+    
+    let left = side === "left"
+      ? Math.max(0, boardRect.left)
+      : Math.min(window.innerWidth - buttonWidth, boardRect.left + boardRect.width - buttonWidth);
+
+    let top = Math.min(
+      window.innerHeight - buttonHeight * 2,
+      Math.max(0, boardRect.top + boardRect.height / 2 - buttonHeight)
+    );
+
+    const btnStyle = {
+      position: "fixed",
+      left: left,
+      top: top,
+      zIndex: 99,
+      display: "flex",
+      flexDirection: "column",
+      alignItems: "center",
+      background: "rgba(30,30,30,0.7)",
+      borderRadius: 8,
+      boxShadow: "0 2px 8px #0006",
+      padding: 2
+    };
+
+    const handleTouchStart = (direction) => (e) => {
+      e.preventDefault();
+      if (side === "left") {
+        setTouchDirL(direction);
+      } else {
+        setTouchDirR(direction);
+      }
+    };
+
+    const handleTouchEnd = () => {
+      if (side === "left") {
+        setTouchDirL(0);
+      } else {
+        setTouchDirR(0);
+      }
+    };
+
+    return (
+      <div style={btnStyle}>
+        <button
+          className="pong-touch-btn"
+          style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
+          onTouchStart={handleTouchStart(-1)}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleTouchStart(-1)}
+          onMouseUp={handleTouchEnd}
+        >▲</button>
+        <button
+          className="pong-touch-btn"
+          style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
+          onTouchStart={handleTouchStart(1)}
+          onTouchEnd={handleTouchEnd}
+          onMouseDown={handleTouchStart(1)}
+          onMouseUp={handleTouchEnd}
+        >▼</button>
+      </div>
+    );
+  }
   
-  // For left, flush to the court's left edge, but not off-screen
-  // For right, flush to the court's right edge, but not off-screen
-  let left = side === "left"
-    ? Math.max(0, boardRect.left)
-    : Math.min(window.innerWidth - buttonWidth, boardRect.left + boardRect.width - buttonWidth);
-
-  // Vertically center, but never off top/bottom
-  let top = Math.min(
-    window.innerHeight - buttonHeight * 2,
-    Math.max(0, boardRect.top + boardRect.height / 2 - buttonHeight)
-  );
-
-  const btnStyle = {
-    position: "fixed",
-    left: left,
-    top: top,
-    zIndex: 99,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    background: "rgba(30,30,30,0.7)",
-    borderRadius: 8,
-    boxShadow: "0 2px 8px #0006",
-    padding: 2
-  };
-
-  return (
-    <div style={btnStyle}>
-      <button
-        className="pong-touch-btn"
-        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
-        onTouchStart={() => side === "left" ? setTouchDirL(-1) : setTouchDirR(-1)}
-        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
-      >▲</button>
-      <button
-        className="pong-touch-btn"
-        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
-        onTouchStart={() => side === "left" ? setTouchDirL(1) : setTouchDirR(1)}
-        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
-      >▼</button>
-    </div>
-  );
-}function TouchControls({ side, boardRect }) {
-  if (!boardRect) return null;
-  const buttonWidth = 60, buttonHeight = 80;
-  
-  // For left, flush to the court's left edge, but not off-screen
-  // For right, flush to the court's right edge, but not off-screen
-  let left = side === "left"
-    ? Math.max(0, boardRect.left)
-    : Math.min(window.innerWidth - buttonWidth, boardRect.left + boardRect.width - buttonWidth);
-
-  // Vertically center, but never off top/bottom
-  let top = Math.min(
-    window.innerHeight - buttonHeight * 2,
-    Math.max(0, boardRect.top + boardRect.height / 2 - buttonHeight)
-  );
-
-  const btnStyle = {
-    position: "fixed",
-    left: left,
-    top: top,
-    zIndex: 99,
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    background: "rgba(30,30,30,0.7)",
-    borderRadius: 8,
-    boxShadow: "0 2px 8px #0006",
-    padding: 2
-  };
-
-  return (
-    <div style={btnStyle}>
-      <button
-        className="pong-touch-btn"
-        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
-        onTouchStart={() => side === "left" ? setTouchDirL(-1) : setTouchDirR(-1)}
-        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
-      >▲</button>
-      <button
-        className="pong-touch-btn"
-        style={{ width: buttonWidth, height: buttonHeight, fontSize: 24, margin: 2 }}
-        onTouchStart={() => side === "left" ? setTouchDirL(1) : setTouchDirR(1)}
-        onTouchEnd={() => side === "left" ? setTouchDirL(0) : setTouchDirR(0)}
-      >▼</button>
-    </div>
-  );
-}
-  
-  // Start/Restart
+  // UPDATED: Start/Restart with difficulty-based ball speed
   function handleStart() {
+    const initialSpeed = getBallSpeed(difficulty);
     setScore({left:0, right:0});
     setBall({
-      x: WIDTH/2-BALL_SIZE/2, y: HEIGHT/2-BALL_SIZE/2,
-      dx: (Math.random()>0.5?1:-1)*BASE_BALL_SPEED,
-      dy: (Math.random()>0.5?1:-1)*BASE_BALL_SPEED,
-      speed: BASE_BALL_SPEED
+      x: WIDTH/2-BALL_SIZE/2, 
+      y: HEIGHT/2-BALL_SIZE/2,
+      dx: (Math.random()>0.5?1:-1)*initialSpeed,
+      dy: (Math.random()>0.5?1:-1)*initialSpeed,
+      speed: initialSpeed
     });
     setLeftPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
     setRightPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
@@ -652,6 +713,8 @@ function TouchControls({ side, boardRect }) {
         Right: {twoPlayer ? `${keyMap.rightUp.toUpperCase()}/${keyMap.rightDown.toUpperCase()}` : multiplayer ? "Remote" : "AI"}
         <br />
         Touch: ▲▼ (mobile)
+        <br />
+        <strong>Ball Speed:</strong> {getBallSpeed(difficulty).toFixed(1)} (Difficulty: {difficulty})
       </div>
       {!running && !winner && (
         <button
