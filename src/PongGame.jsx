@@ -593,7 +593,7 @@ export default function PongGame() {
             {/* Left Player Controls - Much closer */}
             <div style={{
               position: "absolute",
-              left: "1200px", // Changed from -90px to -85px (closer)
+              left: "1400px", // Changed from -90px to -85px (closer)
               top: "50%",
               transform: "translateY(-50%)",
               zIndex: 100
@@ -615,7 +615,7 @@ export default function PongGame() {
             {/* Right Player Controls - Much closer */}
             <div style={{
               position: "absolute",
-              right: "1200px", // Changed from -90px to -85px (closer)
+              right: "1400px", // Changed from -90px to -85px (closer)
               top: "50%",
               transform: "translateY(-50%)",
               zIndex: 100
