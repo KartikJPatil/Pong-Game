@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 
 export default function TouchControls({ 
   player, 
@@ -12,6 +12,36 @@ export default function TouchControls({
   running,
   winner
 }) {
+  const [isVisible, setIsVisible] = useState(true);
+  
+  // Hide controls when user scrolls away from game area (only for two-player mode)
+  useEffect(() => {
+    if (!twoPlayer || multiplayer) return;
+    
+    const handleScroll = () => {
+      if (!boardRect) return;
+      
+      const viewportHeight = window.innerHeight;
+      const boardTop = boardRect.top;
+      const boardBottom = boardRect.bottom;
+      
+      const isGameVisible = boardTop < viewportHeight && boardBottom > 0;
+      setIsVisible(isGameVisible);
+    };
+
+    window.addEventListener('scroll', handleScroll);
+    window.addEventListener('resize', handleScroll);
+    
+    handleScroll();
+    
+    return () => {
+      window.removeEventListener('scroll', handleScroll);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, [boardRect, twoPlayer, multiplayer]);
+
+  if (!boardRect) return null;
+  
   const isTwoPlayer = twoPlayer && !multiplayer;
   const buttonWidth = 70;
   const buttonHeight = 60;
@@ -29,10 +59,24 @@ export default function TouchControls({
   };
 
   if (isTwoPlayer) {
-    // Two Player Mode: Simple vertical layout
+    // Two Player Mode: Fixed positioning beside the court in landscape
+    if (!isVisible) return null;
+    
+    containerStyle.position = "fixed";
+    containerStyle.zIndex = 1000;
     containerStyle.flexDirection = "column";
+    containerStyle.top = (boardRect.top + boardRect.height / 2 - (buttonHeight + buttonSpacing)) + "px";
+    
+    if (player === "left") {
+      // Left controls: positioned on the left side in landscape mode
+      containerStyle.left = "20px";
+    } else {
+      // Right controls: positioned on the right side in landscape mode
+      containerStyle.right = "20px";
+    }
   } else {
-    // Single Player Mode: Horizontal layout between buttons and leaderboard
+    // Single Player Mode: Static position between buttons and leaderboard
+    containerStyle.position = "static";
     containerStyle.margin = "20px auto";
     containerStyle.flexDirection = "row";
     containerStyle.justifyContent = "center";
@@ -64,7 +108,9 @@ export default function TouchControls({
     height: buttonHeight + "px",
     fontSize: "28px",
     fontWeight: "bold",
-    background: "linear-gradient(145deg, #0ff, #0aa)",
+    background: player === "left" || !isTwoPlayer 
+      ? "linear-gradient(145deg, #0ff, #0aa)" 
+      : "linear-gradient(145deg, #f0f, #a0a)", // Different color for right player
     border: "none",
     borderRadius: "12px",
     color: "#000",
@@ -74,7 +120,9 @@ export default function TouchControls({
     alignItems: "center",
     justifyContent: "center",
     transition: "all 0.2s ease",
-    boxShadow: "0 4px 12px rgba(0,255,255,0.4)",
+    boxShadow: player === "left" || !isTwoPlayer 
+      ? "0 4px 12px rgba(0,255,255,0.4)" 
+      : "0 4px 12px rgba(255,0,255,0.4)",
     textShadow: "0 1px 2px rgba(0,0,0,0.3)"
   };
 
@@ -90,6 +138,20 @@ export default function TouchControls({
 
   return (
     <div style={containerStyle}>
+      {/* Player Label for Two Player Mode */}
+      {isTwoPlayer && (
+        <div style={{
+          color: player === "left" ? "#0ff" : "#f0f",
+          fontSize: "12px",
+          fontWeight: "bold",
+          textAlign: "center",
+          marginBottom: "5px",
+          textShadow: "0 1px 2px rgba(0,0,0,0.8)"
+        }}>
+          {player === "left" ? "PLAYER 1" : "PLAYER 2"}
+        </div>
+      )}
+
       <button
         style={currentTouchDir === -1 ? activeButtonStyle : buttonStyle}
         onTouchStart={handleTouchStart(-1)}
