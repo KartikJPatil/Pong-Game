@@ -113,7 +113,7 @@ export default function GameHeader({ theme, setTheme }) {
         PONG
       </h1>
       <p style={{ margin: "5px 0", fontSize: "1.2em", opacity: 0.8 }}>
-        React Edition
+        Kartik Patil
       </p>
       <ThemePicker />
     </div>

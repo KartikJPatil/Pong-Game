@@ -97,7 +97,7 @@ export default function PongGame() {
   const aiTargetRef = useRef(0);
   const aiUpdateCounter = useRef(0);
   
-  // FIXED: Use refs for immediate paddle positions
+  // Refs for immediate paddle positions
   const leftPaddleRef = useRef(HEIGHT/2 - PADDLE_HEIGHT/2);
   const rightPaddleRef = useRef(HEIGHT/2 - PADDLE_HEIGHT/2);
   const ballRef = useRef({
@@ -188,7 +188,7 @@ export default function PongGame() {
     }
   }, [score, winner]);
 
-  // Multiplayer functions
+  // FIXED: Multiplayer functions with proper state sync
   function startMultiplayer(roomCode) {
     // Don't disconnect existing socket if it's already connected to the same room
     if (socket && room === roomCode && socket.connected) {
@@ -248,13 +248,16 @@ export default function PongGame() {
       setSide(""); 
     });
 
+    // FIXED: Proper state synchronization for guests
     s.on("state_update", (state) => {
+      console.log("Received state update:", state);
       if (side === "guest") {
-        // FIXED: Update refs immediately for smooth rendering
+        // Update refs immediately
         leftPaddleRef.current = state.leftPaddle;
         rightPaddleRef.current = state.rightPaddle;
         ballRef.current = state.ball;
         
+        // Update React state
         setLeftPaddle(state.leftPaddle);
         setRightPaddle(state.rightPaddle);
         setBall(state.ball);
@@ -266,10 +269,12 @@ export default function PongGame() {
       }
     });
 
+    // FIXED: Host receives guest paddle input
     s.on("guest_paddle_input", (input) => {
+      console.log("Received guest paddle input:", input);
       if (isHost) {
-        rightPaddleRef.current = input;
-        setRightPaddle(input);
+        leftPaddleRef.current = input; // Guest controls left paddle
+        setLeftPaddle(input);
       }
     });
 
@@ -315,7 +320,7 @@ export default function PongGame() {
     };
   }, [socket]);
 
-  // FIXED: Optimized Paddle movement with immediate ref updates
+  // FIXED: Paddle movement with proper multiplayer handling
   const updatePaddles = useCallback(() => {
     let lPad = leftPaddleRef.current;
     let rPad = rightPaddleRef.current;
@@ -332,18 +337,35 @@ export default function PongGame() {
     
     const paddleSpeed = BASE_PADDLE_SPEED + (difficulty - 5);
     
-    // Left paddle (player)
-    if (lUp || lUpTouch) {
-      lPad -= paddleSpeed;
-    }
-    if (lDn || lDnTouch) {
-      lPad += paddleSpeed;
-    }
-    
     if (multiplayer) {
-      // Multiplayer logic - no changes needed
+      // FIXED: Multiplayer paddle logic
+      if (isHost) {
+        // Host controls right paddle, receives left paddle input from guest
+        if (rUp || rUpTouch) {
+          rPad -= paddleSpeed;
+        }
+        if (rDn || rDnTouch) {
+          rPad += paddleSpeed;
+        }
+        // Left paddle (lPad) is controlled by guest and updated via socket
+      } else {
+        // Guest controls left paddle
+        if (lUp || lUpTouch) {
+          lPad -= paddleSpeed;
+        }
+        if (lDn || lDnTouch) {
+          lPad += paddleSpeed;
+        }
+        // Right paddle is controlled by host and received via state updates
+      }
     } else if (twoPlayer) {
       // Two player mode
+      if (lUp || lUpTouch) {
+        lPad -= paddleSpeed;
+      }
+      if (lDn || lDnTouch) {
+        lPad += paddleSpeed;
+      }
       if (rUp || rUpTouch) {
         rPad -= paddleSpeed;
       }
@@ -351,11 +373,18 @@ export default function PongGame() {
         rPad += paddleSpeed;
       }
     } else {
-      // OPTIMIZED AI Logic
+      // Single player - left paddle (player)
+      if (lUp || lUpTouch) {
+        lPad -= paddleSpeed;
+      }
+      if (lDn || lDnTouch) {
+        lPad += paddleSpeed;
+      }
+      
+      // AI for right paddle
       const aiCenter = rPad + PADDLE_HEIGHT/2;
       const ballCenter = ballRef.current.y + BALL_SIZE/2;
       
-      // Update AI target less frequently to reduce calculations
       aiUpdateCounter.current++;
       if (aiUpdateCounter.current % 3 === 0) {
         const maxOffset = Math.max(2, 12 - difficulty * 1.5);
@@ -363,11 +392,9 @@ export default function PongGame() {
         aiTargetRef.current = ballCenter + randomOffset;
       }
       
-      // Calculate AI speed based on difficulty
       const difficultyMultiplier = Math.max(0.3, Math.min(2.0, 0.3 + (difficulty - 1) * 0.2));
       const aiSpeed = BASE_PADDLE_SPEED * difficultyMultiplier;
       
-      // Add deadzone to prevent jittering
       const deadzone = Math.max(8, 20 - difficulty * 1.5);
       const distanceToTarget = Math.abs(aiCenter - aiTargetRef.current);
       
@@ -379,7 +406,6 @@ export default function PongGame() {
         }
       }
       
-      // Add slight prediction for higher difficulties
       if (difficulty >= 7) {
         const ballDirection = ballRef.current.dy > 0 ? 1 : -1;
         const prediction = ballDirection * (difficulty - 6) * 2;
@@ -390,23 +416,27 @@ export default function PongGame() {
     lPad = clamp(lPad, 0, HEIGHT - PADDLE_HEIGHT);
     rPad = clamp(rPad, 0, HEIGHT - PADDLE_HEIGHT);
     
-    // FIXED: Update refs immediately
+    // Update refs immediately
     leftPaddleRef.current = lPad;
     rightPaddleRef.current = rPad;
     
     return { lPad, rPad };
   }, [difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, twoPlayer]);
 
-  // FIXED: Game loop with immediate rendering updates
+  // FIXED: Game loop - only runs on host in multiplayer
   useEffect(() => {
     if (!running || isPaused || winner) return;
-    if (multiplayer && !isHost) return;
+    
+    // CRITICAL FIX: In multiplayer, only host runs the game loop
+    if (multiplayer && !isHost) {
+      console.log("Guest - not running game loop, waiting for host updates");
+      return;
+    }
 
     const targetFPS = 60;
     const frameInterval = 1000 / targetFPS;
 
     function gameLoop(currentTime) {
-      // Frame rate limiting
       if (currentTime - lastFrameTime.current < frameInterval) {
         animationRef.current = requestAnimationFrame(gameLoop);
         return;
@@ -422,10 +452,8 @@ export default function PongGame() {
       y += dy;
       let curSpeed = Math.sqrt(dx*dx+dy*dy);
 
-      // Update ball ref immediately
       ballRef.current = { x, y, dx, dy, speed: curSpeed };
 
-      // Optimized trail update (less frequent)
       if (frameCount.current % 2 === 0) {
         setTrail(trail => {
           let next = [{x, y}, ...trail];
@@ -550,12 +578,12 @@ export default function PongGame() {
         return;
       }
 
-      // FIXED: Update state after ref updates for smooth rendering
+      // Update React state
       setLeftPaddle(lPad);
       setRightPaddle(rPad);
       setBall({ x, y, dx, dy, speed: curSpeed });
 
-      // Power-up spawning (less frequent)
+      // Power-up spawning
       if (!powerUp && (powerUpTimer > 200 + Math.random()*400)) {
         let px = Math.random()*(WIDTH-80)+40, py = Math.random()*(HEIGHT-60)+30;
         let types = ["enlarge","shrink","multi"];
@@ -567,12 +595,21 @@ export default function PongGame() {
         setPowerUpTimer(t => t+1);
       }
 
-      // Multiplayer sync
-      if (multiplayer && isHost && socket) {
-        socket.emit("sync_state", { room, state: {
-          leftPaddle: lPad, rightPaddle: rPad, ball: { x, y, dx, dy, speed: curSpeed }, score: newScore,
-          powerUp, trail, winner, running: true
-        } });
+      // CRITICAL: Send state to guest
+      if (multiplayer && isHost && socket && socket.connected) {
+        socket.emit("sync_state", { 
+          room, 
+          state: {
+            leftPaddle: lPad, 
+            rightPaddle: rPad, 
+            ball: { x, y, dx, dy, speed: curSpeed }, 
+            score: newScore,
+            powerUp, 
+            trail, 
+            winner, 
+            running: true
+          } 
+        });
       }
 
       animationRef.current = requestAnimationFrame(gameLoop);
@@ -582,9 +619,10 @@ export default function PongGame() {
     return () => cancelAnimationFrame(animationRef.current);
   }, [running, isPaused, winner, multiplayer, isHost, updatePaddles, score, powerUp, powerUpTimer, winScore, isMuted, scores, socket, room, difficulty]);
 
-  // Multiplayer paddle sync
+  // FIXED: Multiplayer paddle sync - guest sends input to host
   useEffect(() => {
-    if (multiplayer && socket && !isHost && side === "guest") {
+    if (multiplayer && socket && socket.connected && !isHost && side === "guest") {
+      console.log("Guest sending paddle input:", leftPaddleRef.current);
       socket.emit("paddle_input", { room, input: leftPaddleRef.current });
     }
   }, [leftPaddle, multiplayer, socket, isHost, room, side]);
@@ -651,7 +689,7 @@ export default function PongGame() {
             fontSize: '12px',
             zIndex: 9999
           }}>
-            FPS: {fps}
+            FPS: {fps} | Side: {side} | Host: {isHost ? 'Yes' : 'No'}
           </div>
         )}
 
