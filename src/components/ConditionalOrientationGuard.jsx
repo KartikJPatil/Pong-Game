@@ -94,3 +94,4 @@ export default function ConditionalOrientationGuard({ children, twoPlayer }) {
   // For all other cases, just render the game
   return children;
 }
+    
