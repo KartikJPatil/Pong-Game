@@ -87,7 +87,7 @@ export default function PongGame() {
   // Performance tracking
   const [fps, setFps] = useState(0);
 
-  // Refs for smooth paddle movement
+  // Refs for smooth gameplay
   const keys = useRef({});
   const animationRef = useRef();
   const boardAreaRef = useRef();
@@ -96,17 +96,6 @@ export default function PongGame() {
   const frameCount = useRef(0);
   const aiTargetRef = useRef(0);
   const aiUpdateCounter = useRef(0);
-  
-  // Refs for immediate paddle positions
-  const leftPaddleRef = useRef(HEIGHT/2 - PADDLE_HEIGHT/2);
-  const rightPaddleRef = useRef(HEIGHT/2 - PADDLE_HEIGHT/2);
-  const ballRef = useRef({
-    x: WIDTH/2 - BALL_SIZE/2, 
-    y: HEIGHT/2 - BALL_SIZE/2,
-    dx: getBallSpeed(5), 
-    dy: getBallSpeed(5), 
-    speed: getBallSpeed(5)
-  });
 
   // Responsive sizing
   const [svgW, setSvgW] = useState(WIDTH), [svgH, setSvgH] = useState(HEIGHT);
@@ -147,16 +136,10 @@ export default function PongGame() {
     const down = (e) => { 
       e.preventDefault();
       keys.current[e.key] = true; 
-      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        keys.current[e.key] = true;
-      }
     };
     const up = (e) => { 
       e.preventDefault();
       keys.current[e.key] = false; 
-      if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-        keys.current[e.key] = false;
-      }
     };
     
     window.addEventListener("keydown", down);
@@ -190,7 +173,6 @@ export default function PongGame() {
 
   // FIXED: Multiplayer functions with proper state sync
   function startMultiplayer(roomCode) {
-    // Don't disconnect existing socket if it's already connected to the same room
     if (socket && room === roomCode && socket.connected) {
       console.log("Already connected to room:", roomCode);
       return;
@@ -248,33 +230,25 @@ export default function PongGame() {
       setSide(""); 
     });
 
-    // FIXED: Proper state synchronization for guests
+    // CRITICAL FIX: All players receive state updates, not just guests
     s.on("state_update", (state) => {
       console.log("Received state update:", state);
-      if (side === "guest") {
-        // Update refs immediately
-        leftPaddleRef.current = state.leftPaddle;
-        rightPaddleRef.current = state.rightPaddle;
-        ballRef.current = state.ball;
-        
-        // Update React state
-        setLeftPaddle(state.leftPaddle);
-        setRightPaddle(state.rightPaddle);
-        setBall(state.ball);
-        setScore(state.score);
-        setPowerUp(state.powerUp);
-        setTrail(state.trail);
-        setWinner(state.winner);
-        setRunning(state.running);
-      }
+      // Both host and guest receive updates for smooth synchronization
+      setLeftPaddle(state.leftPaddle);
+      setRightPaddle(state.rightPaddle);
+      setBall(state.ball);
+      setScore(state.score);
+      setPowerUp(state.powerUp);
+      setTrail(state.trail || []);
+      setWinner(state.winner);
+      setRunning(state.running);
     });
 
-    // FIXED: Host receives guest paddle input
+    // CRITICAL FIX: Host receives guest paddle input
     s.on("guest_paddle_input", (input) => {
-      console.log("Received guest paddle input:", input);
+      console.log("Host received guest paddle input:", input);
       if (isHost) {
-        leftPaddleRef.current = input; // Guest controls left paddle
-        setLeftPaddle(input);
+        setLeftPaddle(input); // Guest controls left paddle
       }
     });
 
@@ -297,20 +271,6 @@ export default function PongGame() {
     });
   }
 
-  // Add proper cleanup function
-  function disconnectMultiplayer() {
-    if (socket) {
-      console.log("Manually disconnecting from multiplayer...");
-      socket.disconnect();
-      setSocket(null);
-    }
-    setMultiplayer(false);
-    setIsHost(false);
-    setPlayers(1);
-    setRoom("");
-    setSide("");
-  }
-
   // Cleanup effect
   useEffect(() => {
     return () => {
@@ -320,10 +280,10 @@ export default function PongGame() {
     };
   }, [socket]);
 
-  // FIXED: Paddle movement with proper multiplayer handling
+  // CRITICAL FIX: Paddle movement with proper multiplayer handling
   const updatePaddles = useCallback(() => {
-    let lPad = leftPaddleRef.current;
-    let rPad = rightPaddleRef.current;
+    let lPad = leftPaddle;
+    let rPad = rightPaddle;
     
     const lUp = keys.current[keyMap.leftUp] || keys.current[keyMap.leftUp.toLowerCase()] || keys.current[keyMap.leftUp.toUpperCase()];
     const lDn = keys.current[keyMap.leftDown] || keys.current[keyMap.leftDown.toLowerCase()] || keys.current[keyMap.leftDown.toUpperCase()];
@@ -338,28 +298,28 @@ export default function PongGame() {
     const paddleSpeed = BASE_PADDLE_SPEED + (difficulty - 5);
     
     if (multiplayer) {
-      // FIXED: Multiplayer paddle logic
+      // CRITICAL FIX: Correct multiplayer paddle logic
       if (isHost) {
-        // Host controls right paddle, receives left paddle input from guest
+        // Host controls RIGHT paddle
         if (rUp || rUpTouch) {
           rPad -= paddleSpeed;
         }
         if (rDn || rDnTouch) {
           rPad += paddleSpeed;
         }
-        // Left paddle (lPad) is controlled by guest and updated via socket
-      } else {
-        // Guest controls left paddle
+        // Left paddle position comes from guest via socket
+      } else if (side === "guest") {
+        // Guest controls LEFT paddle
         if (lUp || lUpTouch) {
           lPad -= paddleSpeed;
         }
         if (lDn || lDnTouch) {
           lPad += paddleSpeed;
         }
-        // Right paddle is controlled by host and received via state updates
+        // Right paddle position comes from host via state updates
       }
     } else if (twoPlayer) {
-      // Two player mode
+      // Two player local mode
       if (lUp || lUpTouch) {
         lPad -= paddleSpeed;
       }
@@ -373,7 +333,7 @@ export default function PongGame() {
         rPad += paddleSpeed;
       }
     } else {
-      // Single player - left paddle (player)
+      // Single player - AI logic
       if (lUp || lUpTouch) {
         lPad -= paddleSpeed;
       }
@@ -381,9 +341,9 @@ export default function PongGame() {
         lPad += paddleSpeed;
       }
       
-      // AI for right paddle
+      // Optimized AI for right paddle
       const aiCenter = rPad + PADDLE_HEIGHT/2;
-      const ballCenter = ballRef.current.y + BALL_SIZE/2;
+      const ballCenter = ball.y + BALL_SIZE/2;
       
       aiUpdateCounter.current++;
       if (aiUpdateCounter.current % 3 === 0) {
@@ -405,31 +365,21 @@ export default function PongGame() {
           rPad -= aiSpeed;
         }
       }
-      
-      if (difficulty >= 7) {
-        const ballDirection = ballRef.current.dy > 0 ? 1 : -1;
-        const prediction = ballDirection * (difficulty - 6) * 2;
-        aiTargetRef.current += prediction;
-      }
     }
     
     lPad = clamp(lPad, 0, HEIGHT - PADDLE_HEIGHT);
     rPad = clamp(rPad, 0, HEIGHT - PADDLE_HEIGHT);
     
-    // Update refs immediately
-    leftPaddleRef.current = lPad;
-    rightPaddleRef.current = rPad;
-    
     return { lPad, rPad };
-  }, [difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, twoPlayer]);
+  }, [leftPaddle, rightPaddle, ball.y, difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, side, twoPlayer]);
 
-  // FIXED: Game loop - only runs on host in multiplayer
+  // CRITICAL FIX: Game loop - only runs on host in multiplayer
   useEffect(() => {
     if (!running || isPaused || winner) return;
     
-    // CRITICAL FIX: In multiplayer, only host runs the game loop
+    // In multiplayer, only host runs the game loop
     if (multiplayer && !isHost) {
-      console.log("Guest - not running game loop, waiting for host updates");
+      console.log("Guest - waiting for host game state updates");
       return;
     }
 
@@ -446,14 +396,13 @@ export default function PongGame() {
 
       const { lPad, rPad } = updatePaddles();
       
-      let {x, y, dx, dy, speed} = ballRef.current;
+      let {x, y, dx, dy, speed} = ball;
       
       x += dx;
       y += dy;
       let curSpeed = Math.sqrt(dx*dx+dy*dy);
 
-      ballRef.current = { x, y, dx, dy, speed: curSpeed };
-
+      // Trail update (optimized)
       if (frameCount.current % 2 === 0) {
         setTrail(trail => {
           let next = [{x, y}, ...trail];
@@ -465,7 +414,6 @@ export default function PongGame() {
       // Wall collisions
       if (y <= 0 || y+BALL_SIZE >= HEIGHT) {
         dy = -dy;
-        ballRef.current.dy = dy;
         playBeep(800, 60, 0.08, isMuted);
       }
       
@@ -482,7 +430,6 @@ export default function PongGame() {
         curSpeed *= speedup;
         dx = Math.abs(curSpeed * Math.cos(angle));
         dy = curSpeed * Math.sin(angle);
-        ballRef.current = { x, y, dx, dy, speed: curSpeed };
         playBeep(400, 80, 0.08, isMuted);
       }
       
@@ -499,7 +446,6 @@ export default function PongGame() {
         curSpeed *= speedup;
         dx = -Math.abs(curSpeed * Math.cos(angle));
         dy = curSpeed * Math.sin(angle);
-        ballRef.current = { x, y, dx, dy, speed: curSpeed };
         playBeep(200, 80, 0.08, isMuted);
       }
 
@@ -507,21 +453,15 @@ export default function PongGame() {
       if (powerUp && x+BALL_SIZE > powerUp.x && x < powerUp.x+powerUp.size &&
           y+BALL_SIZE > powerUp.y && y < powerUp.y+powerUp.size) {
         if (powerUp.type === "enlarge") {
-          leftPaddleRef.current = clamp(leftPaddleRef.current, 0, HEIGHT-(PADDLE_HEIGHT*1.7));
-          rightPaddleRef.current = clamp(rightPaddleRef.current, 0, HEIGHT-(PADDLE_HEIGHT*1.7));
-          setLeftPaddle(leftPaddleRef.current);
-          setRightPaddle(rightPaddleRef.current);
+          setLeftPaddle(lPad => clamp(lPad, 0, HEIGHT-(PADDLE_HEIGHT*1.7)));
+          setRightPaddle(rPad => clamp(rPad, 0, HEIGHT-(PADDLE_HEIGHT*1.7)));
         }
         if (powerUp.type === "shrink") {
-          leftPaddleRef.current = clamp(leftPaddleRef.current, 0, HEIGHT-(PADDLE_HEIGHT*0.7));
-          rightPaddleRef.current = clamp(rightPaddleRef.current, 0, HEIGHT-(PADDLE_HEIGHT*0.7));
-          setLeftPaddle(leftPaddleRef.current);
-          setRightPaddle(rightPaddleRef.current);
+          setLeftPaddle(lPad => clamp(lPad, 0, HEIGHT-(PADDLE_HEIGHT*0.7)));
+          setRightPaddle(rPad => clamp(rPad, 0, HEIGHT-(PADDLE_HEIGHT*0.7)));
         }
         if (powerUp.type === "multi") {
           dx *= 1.5; dy *= 1.5;
-          ballRef.current.dx = dx;
-          ballRef.current.dy = dy;
         }
         setPowerUp(null);
         playBeep(1000, 120, 0.12, isMuted);
@@ -544,18 +484,14 @@ export default function PongGame() {
         const resetSpeed = getBallSpeed(difficulty);
         const resetBall = {
           x: WIDTH/2-BALL_SIZE/2, 
-          y: HEIGHT/2-BALL_SIZE/2,
+          y: WIDTH/2-BALL_SIZE/2,
           dx: (Math.random()>0.5?1:-1)*resetSpeed,
           dy: (Math.random()>0.5?1:-1)*resetSpeed,
           speed: resetSpeed
         };
         
-        leftPaddleRef.current = HEIGHT/2-PADDLE_HEIGHT/2;
-        rightPaddleRef.current = HEIGHT/2-PADDLE_HEIGHT/2;
-        ballRef.current = resetBall;
-        
-        setLeftPaddle(leftPaddleRef.current);
-        setRightPaddle(rightPaddleRef.current);
+        setLeftPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
+        setRightPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
         setBall(resetBall);
         setScore(newScore);
         setTrail([]);
@@ -574,6 +510,24 @@ export default function PongGame() {
           localStorage.setItem("pong-leaderboard", JSON.stringify(nextScores));
           setRunning(false);
         }
+        
+        // Send updated state to all players
+        if (multiplayer && isHost && socket && socket.connected) {
+          socket.emit("sync_state", { 
+            room, 
+            state: {
+              leftPaddle: HEIGHT/2-PADDLE_HEIGHT/2,
+              rightPaddle: HEIGHT/2-PADDLE_HEIGHT/2,
+              ball: resetBall,
+              score: newScore,
+              powerUp: null,
+              trail: [],
+              winner: win,
+              running: !win
+            } 
+          });
+        }
+        
         animationRef.current = requestAnimationFrame(gameLoop);
         return;
       }
@@ -595,7 +549,7 @@ export default function PongGame() {
         setPowerUpTimer(t => t+1);
       }
 
-      // CRITICAL: Send state to guest
+      // CRITICAL: Send complete game state to all players every frame
       if (multiplayer && isHost && socket && socket.connected) {
         socket.emit("sync_state", { 
           room, 
@@ -617,13 +571,13 @@ export default function PongGame() {
     
     animationRef.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [running, isPaused, winner, multiplayer, isHost, updatePaddles, score, powerUp, powerUpTimer, winScore, isMuted, scores, socket, room, difficulty]);
+  }, [running, isPaused, winner, multiplayer, isHost, updatePaddles, ball, score, powerUp, powerUpTimer, winScore, isMuted, scores, socket, room, difficulty]);
 
-  // FIXED: Multiplayer paddle sync - guest sends input to host
+  // CRITICAL FIX: Guest sends paddle input to host
   useEffect(() => {
     if (multiplayer && socket && socket.connected && !isHost && side === "guest") {
-      console.log("Guest sending paddle input:", leftPaddleRef.current);
-      socket.emit("paddle_input", { room, input: leftPaddleRef.current });
+      console.log("Guest sending paddle input:", leftPaddle);
+      socket.emit("paddle_input", { room, input: leftPaddle });
     }
   }, [leftPaddle, multiplayer, socket, isHost, room, side]);
 
@@ -647,14 +601,10 @@ export default function PongGame() {
       speed: initialSpeed
     };
     
-    leftPaddleRef.current = HEIGHT/2-PADDLE_HEIGHT/2;
-    rightPaddleRef.current = HEIGHT/2-PADDLE_HEIGHT/2;
-    ballRef.current = initialBall;
-    
     setScore({left:0, right:0});
     setBall(initialBall);
-    setLeftPaddle(leftPaddleRef.current);
-    setRightPaddle(rightPaddleRef.current);
+    setLeftPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
+    setRightPaddle(HEIGHT/2-PADDLE_HEIGHT/2);
     setWinner("");
     setTrail([]);
     setPowerUp(null);
@@ -676,7 +626,7 @@ export default function PongGame() {
         flexDirection: "column",
         alignItems: "center"
       }}>
-        {/* Performance Monitor (Development Only) */}
+        {/* Debug Info (Development Only) */}
         {process.env.NODE_ENV === 'development' && (
           <div style={{
             position: 'fixed',
@@ -689,7 +639,7 @@ export default function PongGame() {
             fontSize: '12px',
             zIndex: 9999
           }}>
-            FPS: {fps} | Side: {side} | Host: {isHost ? 'Yes' : 'No'}
+            FPS: {fps} | Side: {side} | Host: {isHost ? 'Yes' : 'No'} | Players: {players}
           </div>
         )}
 
