@@ -131,10 +131,9 @@ export default function PongGame() {
     return () => window.removeEventListener("resize", updateRect);
   }, []);
 
-  // FIXED: Key handling - prevent default only for game keys
+  // Key handling - prevent default only for game keys
   useEffect(() => {
     const down = (e) => { 
-      // Only prevent default for game control keys, not input fields
       if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         const gameKeys = ['w', 's', 'W', 'S', 'ArrowUp', 'ArrowDown'];
         if (gameKeys.includes(e.key)) {
@@ -144,7 +143,6 @@ export default function PongGame() {
       keys.current[e.key] = true; 
     };
     const up = (e) => { 
-      // Only prevent default for game control keys, not input fields
       if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
         const gameKeys = ['w', 's', 'W', 'S', 'ArrowUp', 'ArrowDown'];
         if (gameKeys.includes(e.key)) {
@@ -183,7 +181,7 @@ export default function PongGame() {
     }
   }, [score, winner]);
 
-  // FIXED: Multiplayer functions with proper state sync
+  // CRITICAL FIX: Multiplayer functions with proper state sync
   function startMultiplayer(roomCode) {
     if (socket && room === roomCode && socket.connected) {
       console.log("Already connected to room:", roomCode);
@@ -242,27 +240,25 @@ export default function PongGame() {
       setSide(""); 
     });
 
-    // CRITICAL FIX: Only guest receives state updates to avoid conflicts
+    // CRITICAL FIX: Both players receive state updates for synchronization
     s.on("state_update", (state) => {
-      console.log("Received state update:", state, "Side:", side);
-      if (side === "guest") {
-        setLeftPaddle(state.leftPaddle);
-        setRightPaddle(state.rightPaddle);
-        setBall(state.ball);
-        setScore(state.score);
-        setPowerUp(state.powerUp);
-        setTrail(state.trail || []);
-        setWinner(state.winner);
-        setRunning(state.running);
-      }
+      console.log("Received state update:", state);
+      // All players receive updates for proper synchronization
+      setLeftPaddle(state.leftPaddle);
+      setRightPaddle(state.rightPaddle);
+      setBall(state.ball);
+      setScore(state.score);
+      setPowerUp(state.powerUp);
+      setTrail(state.trail || []);
+      setWinner(state.winner);
+      setRunning(state.running);
     });
 
     // CRITICAL FIX: Host receives guest paddle input
     s.on("guest_paddle_input", (input) => {
       console.log("Host received guest paddle input:", input);
-      if (isHost) {
-        setLeftPaddle(input); // Guest controls left paddle
-      }
+      // Always update left paddle with guest input
+      setLeftPaddle(input);
     });
 
     s.on("chat", ({ msg, sender }) => {
@@ -321,7 +317,7 @@ export default function PongGame() {
           rPad += paddleSpeed;
         }
         // Left paddle is controlled by guest and received via socket
-      } else if (side === "guest") {
+      } else {
         // Guest controls LEFT paddle only
         if (lUp || lUpTouch) {
           lPad -= paddleSpeed;
@@ -330,7 +326,8 @@ export default function PongGame() {
           lPad += paddleSpeed;
         }
         // Right paddle is controlled by host and received via state updates
-        return { lPad, rPad: rightPaddle }; // Keep right paddle as received from host
+        // Don't modify rPad for guests
+        return { lPad, rPad: rightPaddle };
       }
     } else if (twoPlayer) {
       // Two player local mode
@@ -385,7 +382,7 @@ export default function PongGame() {
     rPad = clamp(rPad, 0, HEIGHT - PADDLE_HEIGHT);
     
     return { lPad, rPad };
-  }, [leftPaddle, rightPaddle, ball.y, difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, side, twoPlayer]);
+  }, [leftPaddle, rightPaddle, ball.y, difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, twoPlayer]);
 
   // Game loop - only runs on host in multiplayer
   useEffect(() => {
@@ -563,7 +560,7 @@ export default function PongGame() {
         setPowerUpTimer(t => t+1);
       }
 
-      // Send complete game state to guest every frame
+      // CRITICAL: Send complete game state to all players every frame
       if (multiplayer && isHost && socket && socket.connected) {
         socket.emit("sync_state", { 
           room, 
@@ -589,11 +586,11 @@ export default function PongGame() {
 
   // CRITICAL FIX: Guest sends paddle input to host
   useEffect(() => {
-    if (multiplayer && socket && socket.connected && !isHost && side === "guest") {
+    if (multiplayer && socket && socket.connected && !isHost) {
       console.log("Guest sending paddle input:", leftPaddle);
       socket.emit("paddle_input", { room, input: leftPaddle });
     }
-  }, [leftPaddle, multiplayer, socket, isHost, room, side]);
+  }, [leftPaddle, multiplayer, socket, isHost, room]);
 
   // Chat handling
   function handleSendChat(e) {
@@ -654,6 +651,8 @@ export default function PongGame() {
             zIndex: 9999
           }}>
             FPS: {fps} | Side: {side} | Host: {isHost ? 'Yes' : 'No'} | Players: {players}
+            <br />
+            L: {Math.round(leftPaddle)} | R: {Math.round(rightPaddle)}
           </div>
         )}
 
