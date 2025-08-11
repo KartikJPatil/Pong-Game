@@ -37,8 +37,16 @@ export default function MultiplayerSection({
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
+      e.preventDefault(); // Prevent form submission
       handleJoinRoom();
     }
+  };
+
+  // CRITICAL FIX: Proper input change handler
+  const handleRoomInputChange = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setRoomInput(e.target.value);
   };
 
   if (!multiplayer) {
@@ -56,10 +64,12 @@ export default function MultiplayerSection({
         <h2 style={{ color: "#0ff", margin: "0 0 15px 0" }}>🌐 Online Multiplayer</h2>
         <div style={{ display: "flex", gap: "10px", justifyContent: "center", alignItems: "center", flexWrap: "wrap" }}>
           <input
+            type="text"
             value={roomInput}
-            onChange={e => setRoomInput(e.target.value)}
+            onChange={handleRoomInputChange}
             onKeyPress={handleKeyPress}
             placeholder="Room code (optional)"
+            autoComplete="off"
             style={{ 
               fontSize: 16, 
               padding: "10px 15px", 
@@ -69,6 +79,14 @@ export default function MultiplayerSection({
               color: "#fff",
               outline: "none",
               minWidth: "200px"
+            }}
+            onFocus={(e) => {
+              e.target.style.background = "rgba(255,255,255,0.15)";
+              e.target.style.borderColor = "#0aa";
+            }}
+            onBlur={(e) => {
+              e.target.style.background = "rgba(255,255,255,0.1)";
+              e.target.style.borderColor = "#0ff";
             }}
           />
           <button
