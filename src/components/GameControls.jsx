@@ -10,7 +10,7 @@ export default function GameControls({
   multiplayer,
   handleStart,
   setRunning,
-  // NEW: Multiplayer ready system props
+  // Multiplayer ready system props
   gamePhase,
   guestReady,
   isHost,
@@ -92,6 +92,7 @@ export default function GameControls({
   // SINGLE PLAYER AND TWO PLAYER CONTROLS
   if (winner) return null;
 
+  // Only show Start Game button when game is not running
   if (!running) {
     return (
       <div style={{ textAlign: "center", margin: "20px 0" }}>
@@ -109,43 +110,6 @@ export default function GameControls({
     );
   }
 
-  return (
-    <div style={{ 
-      textAlign: "center", 
-      margin: "20px 0",
-      display: "flex",
-      gap: "15px",
-      justifyContent: "center",
-      flexWrap: "wrap"
-    }}>
-      <button
-        style={{
-          ...buttonStyle,
-          background: isPaused ? "linear-gradient(45deg, #0f0, #0a0)" : "linear-gradient(45deg, #ff0, #aa0)",
-          color: "#000",
-          fontSize: "14px",
-          padding: "10px 20px"
-        }}
-        onClick={() => setRunning(!isPaused)}
-      >
-        {isPaused ? "▶️ Resume" : "⏸️ Pause"}
-      </button>
-      
-      <button
-        style={{
-          ...buttonStyle,
-          background: "linear-gradient(45deg, #f44, #a22)",
-          color: "#fff",
-          fontSize: "14px",
-          padding: "10px 20px"
-        }}
-        onClick={() => {
-          setRunning(false);
-          if (handleStart) handleStart(); // Reset game
-        }}
-      >
-        🔄 Restart
-      </button>
-    </div>
-  );
+  // Game is running - no controls shown (Pause/Restart removed)
+  return null;
 }

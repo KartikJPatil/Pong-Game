@@ -16,7 +16,7 @@ import Controls from "./components/Controls";
 import KeyConfig from "./components/KeyConfig";
 import Leaderboard from "./components/Leaderboard";
 
-// FIXED: Import from gameUtils.js
+// Import from gameUtils.js
 import { 
   GAME_CONSTANTS, 
   clamp, 
@@ -232,7 +232,7 @@ export default function PongGame() {
     }
     
     const s = io(SOCKET_URL, {
-      transports: ['polling', 'websocket'], // ✅ Start with polling, upgrade to websocket
+      transports: ['polling', 'websocket'],
       upgrade: true,
       rememberUpgrade: false,
       timeout: 20000,
@@ -240,7 +240,6 @@ export default function PongGame() {
       secure: true,
       rejectUnauthorized: false
     });
-    
     
     setSocket(s);
     setRoom(roomCode);
@@ -330,7 +329,7 @@ export default function PongGame() {
     // State synchronization for guest
     s.on("state_update", (state) => {
       console.log("Received state update:", state);
-      if (!isHost) { // Only guest receives state updates
+      if (!isHost) {
         setLeftPaddle(state.leftPaddle);
         setRightPaddle(state.rightPaddle);
         setBall(state.ball);
