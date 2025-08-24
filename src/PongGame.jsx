@@ -232,10 +232,15 @@ export default function PongGame() {
     }
     
     const s = io(SOCKET_URL, {
-      transports: ['websocket', 'polling'],
-      timeout: 10000,
-      forceNew: true
+      transports: ['polling', 'websocket'], // ✅ Start with polling, upgrade to websocket
+      upgrade: true,
+      rememberUpgrade: false,
+      timeout: 20000,
+      forceNew: true,
+      secure: true,
+      rejectUnauthorized: false
     });
+    
     
     setSocket(s);
     setRoom(roomCode);

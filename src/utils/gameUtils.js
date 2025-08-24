@@ -22,9 +22,9 @@ export const {
   TRAIL_LEN 
 } = GAME_CONSTANTS;
 
-// Socket URL Configuration
+// ✅ FIXED: Replace with your ACTUAL Render URL
 export const SOCKET_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://YOUR-RENDER-SERVER-URL.onrender.com'  // Replace with your actual Render URL
+  ? 'https://your-actual-render-app-name.onrender.com'  // ← PUT YOUR REAL URL HERE
   : 'http://localhost:4000';
 
 // Utility Functions
