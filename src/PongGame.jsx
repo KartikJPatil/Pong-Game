@@ -77,6 +77,14 @@ export default function PongGame() {
   const [players, setPlayers] = useState(1);
   const [side, setSide] = useState("");
 
+  // NEW: Enhanced Multiplayer States
+  const [guestReady, setGuestReady] = useState(false);
+  const [hostReady, setHostReady] = useState(false);
+  const [countdown, setCountdown] = useState(0);
+  const [gamePhase, setGamePhase] = useState("waiting"); // waiting, ready, countdown, playing, finished
+  const [playMoreRequest, setPlayMoreRequest] = useState(null);
+  const [showPlayMoreModal, setShowPlayMoreModal] = useState(false);
+
   // Chat
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState("");
@@ -96,6 +104,7 @@ export default function PongGame() {
   const frameCount = useRef(0);
   const aiTargetRef = useRef(0);
   const aiUpdateCounter = useRef(0);
+  const countdownRef = useRef(null);
 
   // Responsive sizing
   const [svgW, setSvgW] = useState(WIDTH), [svgH, setSvgH] = useState(HEIGHT);
@@ -181,7 +190,30 @@ export default function PongGame() {
     }
   }, [score, winner]);
 
-  // CRITICAL FIX: Multiplayer functions with proper state sync
+  // NEW: Countdown effect
+  useEffect(() => {
+    if (countdown > 0) {
+      countdownRef.current = setTimeout(() => {
+        if (countdown === 1) {
+          setCountdown(0);
+          setGamePhase("playing");
+          setRunning(true);
+          playBeep(1200, 200, 0.15, isMuted);
+        } else {
+          setCountdown(countdown - 1);
+          playBeep(800, 150, 0.1, isMuted);
+        }
+      }, 1000);
+    }
+    
+    return () => {
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, [countdown, isMuted]);
+
+  // ENHANCED: Multiplayer functions with ready system
   function startMultiplayer(roomCode) {
     if (socket && room === roomCode && socket.connected) {
       console.log("Already connected to room:", roomCode);
@@ -203,6 +235,9 @@ export default function PongGame() {
     setRoom(roomCode);
     setMultiplayer(true);
     setTwoPlayer(false);
+    setGamePhase("waiting");
+    setGuestReady(false);
+    setHostReady(false);
     
     console.log("Attempting to join room:", roomCode);
     s.emit("join", { room: roomCode });
@@ -219,6 +254,9 @@ export default function PongGame() {
     s.on("players", count => {
       console.log("Players in room:", count);
       setPlayers(count);
+      if (count === 2) {
+        setGamePhase("ready");
+      }
     });
     
     s.on("host", () => { 
@@ -230,6 +268,9 @@ export default function PongGame() {
     s.on("side", _side => {
       console.log("Your side:", _side);
       setSide(_side);
+      if (_side === "guest") {
+        setIsHost(false);
+      }
     });
     
     s.on("full", () => { 
@@ -240,25 +281,63 @@ export default function PongGame() {
       setSide(""); 
     });
 
-    // CRITICAL FIX: Both players receive state updates for synchronization
-    s.on("state_update", (state) => {
-      console.log("Received state update:", state);
-      // All players receive updates for proper synchronization
-      setLeftPaddle(state.leftPaddle);
-      setRightPaddle(state.rightPaddle);
-      setBall(state.ball);
-      setScore(state.score);
-      setPowerUp(state.powerUp);
-      setTrail(state.trail || []);
-      setWinner(state.winner);
-      setRunning(state.running);
+    // NEW: Ready system events
+    s.on("guest_ready", () => {
+      console.log("Guest is ready");
+      setGuestReady(true);
     });
 
-    // CRITICAL FIX: Host receives guest paddle input
+    s.on("start_countdown", () => {
+      console.log("Starting countdown");
+      setGamePhase("countdown");
+      setCountdown(3);
+    });
+
+    s.on("play_more_request", (data) => {
+      console.log("Play more request received:", data);
+      setPlayMoreRequest(data);
+      setShowPlayMoreModal(true);
+    });
+
+    s.on("play_more_accepted", () => {
+      console.log("Play more accepted");
+      setShowPlayMoreModal(false);
+      setPlayMoreRequest(null);
+      resetGame();
+      setGamePhase("countdown");
+      setCountdown(3);
+    });
+
+    s.on("play_more_declined", () => {
+      console.log("Play more declined");
+      setShowPlayMoreModal(false);
+      setPlayMoreRequest(null);
+    });
+
+    // FIXED: State synchronization for guest paddle movement
+    s.on("state_update", (state) => {
+      console.log("Received state update:", state);
+      if (!isHost) { // Only guest receives state updates
+        setLeftPaddle(state.leftPaddle);
+        setRightPaddle(state.rightPaddle);
+        setBall(state.ball);
+        setScore(state.score);
+        setPowerUp(state.powerUp);
+        setTrail(state.trail || []);
+        if (state.winner) {
+          setWinner(state.winner);
+          setRunning(false);
+          setGamePhase("finished");
+        }
+      }
+    });
+
+    // FIXED: Host receives guest paddle input
     s.on("guest_paddle_input", (input) => {
       console.log("Host received guest paddle input:", input);
-      // Always update left paddle with guest input
-      setLeftPaddle(input);
+      if (isHost) {
+        setLeftPaddle(input); // Guest controls left paddle
+      }
     });
 
     s.on("chat", ({ msg, sender }) => {
@@ -273,6 +352,9 @@ export default function PongGame() {
       setPlayers(1);
       setRoom("");
       setSide("");
+      setGamePhase("waiting");
+      setGuestReady(false);
+      setHostReady(false);
       
       if (reason !== "io client disconnect") {
         alert(`Disconnected from multiplayer server: ${reason}`);
@@ -286,10 +368,61 @@ export default function PongGame() {
       if (socket) {
         socket.disconnect();
       }
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
     };
   }, [socket]);
 
-  // CRITICAL FIX: Paddle movement with proper multiplayer handling
+  // NEW: Guest ready function
+  function handleGuestReady() {
+    if (socket && socket.connected && !isHost) {
+      console.log("Guest sending ready signal");
+      socket.emit("guest_ready", { room });
+      setGuestReady(true);
+    }
+  }
+
+  // NEW: Host start game function
+  function handleHostStartGame() {
+    if (socket && socket.connected && isHost && guestReady) {
+      console.log("Host starting countdown");
+      socket.emit("start_countdown", { room });
+      setGamePhase("countdown");
+      setCountdown(3);
+    }
+  }
+
+  // NEW: Play more request function
+  function handlePlayMoreRequest() {
+    if (socket && socket.connected) {
+      const requester = isHost ? "Host" : "Guest";
+      socket.emit("play_more_request", { room, requester });
+      console.log("Sent play more request");
+    }
+  }
+
+  // NEW: Play more response functions
+  function acceptPlayMore() {
+    if (socket && socket.connected) {
+      socket.emit("play_more_accepted", { room });
+      setShowPlayMoreModal(false);
+      setPlayMoreRequest(null);
+      resetGame();
+      setGamePhase("countdown");
+      setCountdown(3);
+    }
+  }
+
+  function declinePlayMore() {
+    if (socket && socket.connected) {
+      socket.emit("play_more_declined", { room });
+      setShowPlayMoreModal(false);
+      setPlayMoreRequest(null);
+    }
+  }
+
+  // FIXED: Paddle movement with proper multiplayer handling
   const updatePaddles = useCallback(() => {
     let lPad = leftPaddle;
     let rPad = rightPaddle;
@@ -307,7 +440,7 @@ export default function PongGame() {
     const paddleSpeed = BASE_PADDLE_SPEED + (difficulty - 5);
     
     if (multiplayer) {
-      // CRITICAL FIX: Proper multiplayer paddle logic
+      // FIXED: Proper multiplayer paddle logic
       if (isHost) {
         // Host controls RIGHT paddle only
         if (rUp || rUpTouch) {
@@ -326,7 +459,6 @@ export default function PongGame() {
           lPad += paddleSpeed;
         }
         // Right paddle is controlled by host and received via state updates
-        // Don't modify rPad for guests
         return { lPad, rPad: rightPaddle };
       }
     } else if (twoPlayer) {
@@ -384,9 +516,9 @@ export default function PongGame() {
     return { lPad, rPad };
   }, [leftPaddle, rightPaddle, ball.y, difficulty, keyMap, touchDirL, touchDirR, multiplayer, isHost, twoPlayer]);
 
-  // Game loop - only runs on host in multiplayer
+  // Game loop - only runs on host in multiplayer or in single/two-player modes
   useEffect(() => {
-    if (!running || isPaused || winner) return;
+    if (!running || isPaused || winner || gamePhase !== "playing") return;
     
     // In multiplayer, only host runs the game loop
     if (multiplayer && !isHost) {
@@ -511,6 +643,8 @@ export default function PongGame() {
         
         if (win) {
           setWinner(win);
+          setRunning(false);
+          setGamePhase("finished");
           let now = new Date();
           let entry = {
             left: newScore.left, right: newScore.right, winner: win,
@@ -519,7 +653,6 @@ export default function PongGame() {
           let nextScores = [entry, ...scores].slice(0, 5);
           setScores(nextScores);
           localStorage.setItem("pong-leaderboard", JSON.stringify(nextScores));
-          setRunning(false);
         }
         
         // Send updated state to all players
@@ -560,7 +693,7 @@ export default function PongGame() {
         setPowerUpTimer(t => t+1);
       }
 
-      // CRITICAL: Send complete game state to all players every frame
+      // CRITICAL: Send complete game state to guest every frame
       if (multiplayer && isHost && socket && socket.connected) {
         socket.emit("sync_state", { 
           room, 
@@ -582,15 +715,15 @@ export default function PongGame() {
     
     animationRef.current = requestAnimationFrame(gameLoop);
     return () => cancelAnimationFrame(animationRef.current);
-  }, [running, isPaused, winner, multiplayer, isHost, updatePaddles, ball, score, powerUp, powerUpTimer, winScore, isMuted, scores, socket, room, difficulty]);
+  }, [running, isPaused, winner, gamePhase, multiplayer, isHost, updatePaddles, ball, score, powerUp, powerUpTimer, winScore, isMuted, scores, socket, room, difficulty]);
 
   // CRITICAL FIX: Guest sends paddle input to host
   useEffect(() => {
-    if (multiplayer && socket && socket.connected && !isHost) {
+    if (multiplayer && socket && socket.connected && !isHost && running) {
       console.log("Guest sending paddle input:", leftPaddle);
       socket.emit("paddle_input", { room, input: leftPaddle });
     }
-  }, [leftPaddle, multiplayer, socket, isHost, room]);
+  }, [leftPaddle, multiplayer, socket, isHost, room, running]);
 
   // Chat handling
   function handleSendChat(e) {
@@ -601,8 +734,8 @@ export default function PongGame() {
     }
   }
 
-  // Start/Restart game
-  function handleStart() {
+  // NEW: Reset game function
+  function resetGame() {
     const initialSpeed = getBallSpeed(difficulty);
     const initialBall = {
       x: WIDTH/2-BALL_SIZE/2, 
@@ -620,11 +753,18 @@ export default function PongGame() {
     setTrail([]);
     setPowerUp(null);
     setPowerUpTimer(0);
-    setRunning(true);
+    setRunning(false);
     
     // Reset AI counters
     aiUpdateCounter.current = 0;
     aiTargetRef.current = HEIGHT/2;
+  }
+
+  // Start/Restart game (for single-player and two-player)
+  function handleStart() {
+    resetGame();
+    setRunning(true);
+    setGamePhase("playing");
   }
 
   return (
@@ -652,11 +792,77 @@ export default function PongGame() {
           }}>
             FPS: {fps} | Side: {side} | Host: {isHost ? 'Yes' : 'No'} | Players: {players}
             <br />
-            L: {Math.round(leftPaddle)} | R: {Math.round(rightPaddle)}
+            Phase: {gamePhase} | L: {Math.round(leftPaddle)} | R: {Math.round(rightPaddle)}
           </div>
         )}
 
-        {/* Winner Modal */}
+        {/* NEW: Countdown Display */}
+        {countdown > 0 && (
+          <div style={{
+            position: 'fixed',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            fontSize: '120px',
+            fontWeight: 'bold',
+            color: '#0ff',
+            textShadow: '0 0 30px rgba(0,255,255,0.8)',
+            zIndex: 2000,
+            animation: 'pulse 0.5s ease-in-out'
+          }}>
+            {countdown === 3 ? '3' : countdown === 2 ? '2' : countdown === 1 ? '1' : 'START!'}
+          </div>
+        )}
+
+        {/* NEW: Play More Modal */}
+        <Modal
+          isOpen={showPlayMoreModal}
+          onRequestClose={() => setShowPlayMoreModal(false)}
+          className="pong-modal"
+          overlayClassName="pong-modal-overlay"
+          ariaHideApp={false}
+          style={{
+            overlay: {
+              backgroundColor: "rgba(0,0,0,0.9)",
+              backdropFilter: "blur(10px)"
+            },
+            content: {
+              background: "linear-gradient(145deg, #1a1a2e, #16213e)",
+              border: "2px solid #0ff",
+              borderRadius: "20px",
+              color: "#fff",
+              textAlign: "center",
+              maxWidth: "400px",
+              margin: "auto",
+              boxShadow: "0 0 30px rgba(0,255,255,0.5)"
+            }
+          }}
+        >
+          <h2 style={{ fontSize: 24, margin: "0.5em 0", color: "#0ff" }}>
+            🎮 Play More Request
+          </h2>
+          <p style={{ fontSize: 18, margin: "1em 0" }}>
+            {playMoreRequest?.requester} wants to play more. Wanna join?
+          </p>
+          <div style={{ display: "flex", gap: "15px", justifyContent: "center", margin: "20px 0" }}>
+            <button 
+              className="pong-btn" 
+              onClick={acceptPlayMore}
+              style={{ background: "linear-gradient(45deg, #0f0, #0a0)" }}
+            >
+              ✅ Yes, Let's Play!
+            </button>
+            <button 
+              className="pong-btn" 
+              onClick={declinePlayMore}
+              style={{ background: "linear-gradient(45deg, #f44, #a22)" }}
+            >
+              ❌ No Thanks
+            </button>
+          </div>
+        </Modal>
+
+        {/* Winner Modal with Play More Button */}
         <Modal
           isOpen={!!winner}
           onRequestClose={() => setWinner("")}
@@ -684,8 +890,18 @@ export default function PongGame() {
             🎉 {winner} Wins! 🎉
           </h2>
           <p style={{ fontSize: 22, margin: "0.8em 0" }}>Final Score: {score.left} - {score.right}</p>
-          <div style={{ display: "flex", gap: "10px", justifyContent: "center", margin: "20px 0" }}>
-            <button className="pong-btn" onClick={handleStart}>🔄 Rematch</button>
+          <div style={{ display: "flex", gap: "10px", justifyContent: "center", margin: "20px 0", flexWrap: "wrap" }}>
+            {multiplayer ? (
+              <button 
+                className="pong-btn" 
+                onClick={handlePlayMoreRequest}
+                style={{ background: "linear-gradient(45deg, #0f0, #0a0)" }}
+              >
+                🔄 Play More
+              </button>
+            ) : (
+              <button className="pong-btn" onClick={handleStart}>🔄 Rematch</button>
+            )}
             <button className="pong-btn" onClick={() => setWinner("")}>❌ Close</button>
           </div>
           <button className="pong-btn" style={{ marginTop: 15 }} onClick={() => setShowLeaderboard(true)}>
@@ -735,6 +951,10 @@ export default function PongGame() {
           startMultiplayer={startMultiplayer}
           socket={socket}
           setMultiplayer={setMultiplayer}
+          gamePhase={gamePhase}
+          guestReady={guestReady}
+          onGuestReady={handleGuestReady}
+          onHostStart={handleHostStartGame}
         />
 
         <Scoreboard 
@@ -794,7 +1014,7 @@ export default function PongGame() {
           boardAreaRef={boardAreaRef}
         />
 
-        {/* TouchControls - ONLY for Two-Player Mode */}
+        {/* TouchControls - Buttons for Single/Multiplayer, Swipe for Two-Player */}
         <TouchControls 
           player="left" 
           boardRect={boardRect}
@@ -807,6 +1027,22 @@ export default function PongGame() {
           running={running}
           winner={winner}
         />
+
+        {/* Second set of buttons only for multiplayer mode */}
+        {(multiplayer && !twoPlayer) && 
+          <TouchControls 
+            player="right" 
+            boardRect={boardRect}
+            twoPlayer={twoPlayer}
+            multiplayer={multiplayer}
+            touchDirL={touchDirL}
+            touchDirR={touchDirR}
+            setTouchDirL={setTouchDirL}
+            setTouchDirR={setTouchDirR}
+            running={running}
+            winner={winner}
+          />
+        }
 
         <GameControls 
           running={running}
@@ -862,6 +1098,15 @@ export default function PongGame() {
           </div>
           <div>Pong in React+Vite &copy; 2025</div>
         </div>
+
+        {/* Add CSS for animations */}
+        <style jsx>{`
+          @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.8; }
+            100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+          }
+        `}</style>
       </div>
     </ConditionalOrientationGuard>
   );

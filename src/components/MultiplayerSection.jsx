@@ -8,41 +8,36 @@ export default function MultiplayerSection({
   side,
   startMultiplayer, 
   socket,
-  setMultiplayer 
+  setMultiplayer,
+  gamePhase,
+  guestReady,
+  onGuestReady,
+  onHostStart
 }) {
   const [roomInput, setRoomInput] = useState("");
 
   const handleLeaveRoom = () => {
-    console.log("Leaving multiplayer room...");
-    
     if (socket && socket.connected) {
-      // Notify server before disconnecting
       socket.emit("leave_room", { room });
-      
-      // Wait a moment then disconnect
       setTimeout(() => {
         socket.disconnect();
       }, 100);
     }
-    
-    // Reset multiplayer state
     setMultiplayer(false);
   };
 
   const handleJoinRoom = () => {
     const roomCode = roomInput.trim() || Math.random().toString(36).substr(2, 6);
-    console.log("Attempting to join room:", roomCode);
     startMultiplayer(roomCode);
   };
 
   const handleKeyPress = (e) => {
     if (e.key === 'Enter') {
-      e.preventDefault(); // Prevent form submission
+      e.preventDefault();
       handleJoinRoom();
     }
   };
 
-  // CRITICAL FIX: Proper input change handler
   const handleRoomInputChange = (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -80,14 +75,6 @@ export default function MultiplayerSection({
               outline: "none",
               minWidth: "200px"
             }}
-            onFocus={(e) => {
-              e.target.style.background = "rgba(255,255,255,0.15)";
-              e.target.style.borderColor = "#0aa";
-            }}
-            onBlur={(e) => {
-              e.target.style.background = "rgba(255,255,255,0.1)";
-              e.target.style.borderColor = "#0ff";
-            }}
           />
           <button
             className="pong-btn"
@@ -104,9 +91,6 @@ export default function MultiplayerSection({
             🚀 Create/Join Room
           </button>
         </div>
-        <div style={{ color: "#aaa", marginTop: 15, fontSize: "14px" }}>
-          Leave empty to create a random room • Press Enter to join quickly
-        </div>
       </div>
     );
   }
@@ -116,22 +100,75 @@ export default function MultiplayerSection({
       color: "#0ff", 
       fontWeight: "bold", 
       margin: "15px 0",
-      padding: "15px",
-      borderRadius: "10px",
+      padding: "20px",
+      borderRadius: "15px",
       background: "rgba(0,255,255,0.1)",
-      border: "1px solid #0ff",
-      textAlign: "center"
+      border: "2px solid #0ff",
+      textAlign: "center",
+      maxWidth: "600px"
     }}>
-      <div style={{ fontSize: "16px", marginBottom: "8px" }}>
+      <div style={{ fontSize: "18px", marginBottom: "12px" }}>
         🏠 Room: <span style={{ color: "#fff", fontFamily: "monospace" }}>{room}</span> | 👥 Players: {players}/2
       </div>
       
-      <div style={{ margin: "8px 0", fontSize: "14px" }}>
-        {players < 2 ? (
+      <div style={{ margin: "12px 0", fontSize: "16px" }}>
+        {gamePhase === "waiting" && players < 2 && (
           <span style={{ color: "#ff0" }}>⏳ Waiting for opponent...</span>
-        ) : (
+        )}
+        {gamePhase === "ready" && players === 2 && !isHost && !guestReady && (
+          <div style={{ margin: "15px 0" }}>
+            <div style={{ color: "#0f0", marginBottom: "10px" }}>
+              🎮 Ready to play? Let the host know!
+            </div>
+            <button 
+              className="pong-btn"
+              onClick={onGuestReady}
+              style={{ 
+                background: "linear-gradient(45deg, #0f0, #0a0)",
+                fontSize: "16px",
+                padding: "12px 24px"
+              }}
+            >
+              ✅ I'm Ready!
+            </button>
+          </div>
+        )}
+        {gamePhase === "ready" && guestReady && !isHost && (
           <span style={{ color: "#0f0" }}>
-            🎮 You are {isHost ? "Host (Right paddle)" : "Guest (Left paddle)"} • Ready to play!
+            ✅ You're ready! Waiting for host to start...
+          </span>
+        )}
+        {gamePhase === "ready" && isHost && guestReady && (
+          <div style={{ margin: "15px 0" }}>
+            <div style={{ color: "#0f0", marginBottom: "10px" }}>
+              🎮 Guest is ready! You can start the game.
+            </div>
+            <button 
+              className="pong-btn"
+              onClick={onHostStart}
+              style={{ 
+                background: "linear-gradient(45deg, #0ff, #0aa)",
+                fontSize: "16px",
+                padding: "12px 24px"
+              }}
+            >
+              🚀 Start Game!
+            </button>
+          </div>
+        )}
+        {gamePhase === "ready" && isHost && !guestReady && (
+          <span style={{ color: "#ff0" }}>
+            ⏳ Waiting for guest to be ready...
+          </span>
+        )}
+        {gamePhase === "countdown" && (
+          <span style={{ color: "#f0f", fontSize: "18px", fontWeight: "bold" }}>
+            🚀 Game starting soon...
+          </span>
+        )}
+        {gamePhase === "playing" && (
+          <span style={{ color: "#0f0" }}>
+            🎮 Game in progress! You are {isHost ? "Host (Right paddle)" : "Guest (Left paddle)"}
           </span>
         )}
       </div>
@@ -147,21 +184,21 @@ export default function MultiplayerSection({
       {/* Room sharing */}
       {players === 1 && (
         <div style={{ 
-          margin: "10px 0", 
-          padding: "8px", 
+          margin: "15px 0", 
+          padding: "12px", 
           background: "rgba(255,255,255,0.05)", 
-          borderRadius: "8px",
-          fontSize: "12px"
+          borderRadius: "10px",
+          fontSize: "14px"
         }}>
-          <div style={{ color: "#aaa", marginBottom: "5px" }}>Share this room code:</div>
+          <div style={{ color: "#aaa", marginBottom: "8px" }}>Share this room code:</div>
           <div style={{ 
             color: "#fff", 
             fontFamily: "monospace", 
-            fontSize: "14px",
+            fontSize: "16px",
             fontWeight: "bold",
-            background: "rgba(0,0,0,0.3)",
-            padding: "4px 8px",
-            borderRadius: "4px",
+            background: "rgba(0,0,0,0.4)",
+            padding: "8px 12px",
+            borderRadius: "8px",
             display: "inline-block"
           }}>
             {room}
@@ -172,12 +209,12 @@ export default function MultiplayerSection({
       <button 
         className="pong-btn"
         style={{ 
-          marginTop: 10, 
+          marginTop: 15, 
           background: "linear-gradient(45deg, #f44, #a22)", 
           color: "#fff",
           border: "none",
           fontSize: "14px",
-          padding: "8px 16px"
+          padding: "10px 20px"
         }}
         onClick={handleLeaveRoom}
       >
