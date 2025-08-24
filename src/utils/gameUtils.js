@@ -1,43 +1,48 @@
-// Game utility functions
+// Make sure your SOCKET_URL is correct
+export const SOCKET_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://YOUR-RENDER-SERVER-URL.onrender.com'  // Replace with your actual Render URL
+  : 'http://localhost:4000';
 
-export function clamp(val, min, max) {
-  return Math.max(min, Math.min(max, val));
+// Other existing exports...
+export const GAME_CONSTANTS = {
+  WIDTH: 800,
+  HEIGHT: 400,
+  PADDLE_HEIGHT: 100,
+  PADDLE_WIDTH: 20,
+  BALL_SIZE: 20,
+  BASE_PADDLE_SPEED: 8,
+  BASE_BALL_SPEED: 5,
+  TRAIL_LEN: 8
+};
+
+export function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
 }
 
 export function getBallSpeed(difficulty) {
-  const speedMultiplier = 0.3 + (difficulty * 0.14);
-  return 6 * speedMultiplier; // BASE_BALL_SPEED = 6
+  return BASE_BALL_SPEED + (difficulty - 1) * 0.5;
 }
 
-export function playBeep(f, d, v, mute) {
-  if (mute) return;
+export function playBeep(frequency, duration, volume, isMuted) {
+  if (isMuted) return;
+  
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = "square";
-    osc.frequency.value = f;
-    gain.gain.value = v || 0.04;
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.start();
-    setTimeout(() => {
-      osc.stop();
-      ctx.close();
-    }, d);
-  } catch {}
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const oscillator = audioContext.createOscillator();
+    const gainNode = audioContext.createGain();
+    
+    oscillator.connect(gainNode);
+    gainNode.connect(audioContext.destination);
+    
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'square';
+    
+    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
+    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
+    
+    oscillator.start();
+    oscillator.stop(audioContext.currentTime + duration / 1000);
+  } catch (error) {
+    console.warn('Audio playback failed:', error);
+  }
 }
-
-export const GAME_CONSTANTS = {
-  WIDTH: 600,
-  HEIGHT: 400,
-  PADDLE_HEIGHT: 80,
-  PADDLE_WIDTH: 12,
-  BALL_SIZE: 14,
-  BASE_PADDLE_SPEED: 8,
-  BASE_BALL_SPEED: 6,
-  TRAIL_LEN: 15
-};
-
-// Fixed: Use VITE_SOCKET_URL instead of VITE_BACKEND_URL
-export const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:4000";
