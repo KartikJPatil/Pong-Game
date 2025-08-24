@@ -1,87 +1,151 @@
 import React from "react";
 
-export default function GameControls({
-  running,
-  winner,
-  isPaused,
-  theme,
+export default function GameControls({ 
+  running, 
+  winner, 
+  isPaused, 
+  theme, 
   keyMap,
   twoPlayer,
   multiplayer,
   handleStart,
-  setRunning
+  setRunning,
+  // NEW: Multiplayer ready system props
+  gamePhase,
+  guestReady,
+  isHost,
+  onGuestReady,
+  onHostStart
 }) {
-  return (
-    <>
-      {/* --- CONTROL INSTRUCTIONS --- */}
-      <div style={{ 
-        color: theme.fg, 
-        marginTop: 15, 
-        fontSize: "14px",
-        textAlign: "center",
-        padding: "15px",
-        borderRadius: "10px",
-        background: "rgba(255,255,255,0.05)",
-        backdropFilter: "blur(5px)",
-        border: "1px solid rgba(255,255,255,0.1)",
-        maxWidth: "600px"
-      }}>
-        <div style={{ color: "#0ff", fontWeight: "bold", marginBottom: "8px" }}>🎮 Controls</div>
-        <div>
-          <strong>Left Player:</strong> {keyMap.leftUp.toUpperCase()}/{keyMap.leftDown.toUpperCase()} &nbsp;|&nbsp;
-          <strong>Right Player:</strong> {twoPlayer ? `${keyMap.rightUp.toUpperCase()}/${keyMap.rightDown.toUpperCase()}` : multiplayer ? "Remote Player" : "AI"}
-        </div>
-        <div style={{ marginTop: "5px", color: "#aaa" }}>
-          📱 Touch controls available on mobile devices
-        </div>
-      </div>
+  
+  const buttonStyle = {
+    fontSize: "18px",
+    fontWeight: "bold",
+    padding: "15px 30px",
+    borderRadius: "25px",
+    border: "none",
+    cursor: "pointer",
+    transition: "all 0.2s ease",
+    boxShadow: "0 4px 15px rgba(0,0,0,0.3)",
+    textShadow: "0 1px 2px rgba(0,0,0,0.3)"
+  };
 
-      {/* --- GAME CONTROL BUTTONS --- */}
-      <div style={{ margin: "20px 0", display: "flex", gap: "15px", flexWrap: "wrap", justifyContent: "center" }}>
-        {!running && !winner && (
+  // MULTIPLAYER READY SYSTEM
+  if (multiplayer) {
+    // Guest Ready Button
+    if (!isHost && gamePhase === "ready" && !guestReady) {
+      return (
+        <div style={{ textAlign: "center", margin: "20px 0" }}>
           <button
-            className="pong-btn"
             style={{
-              padding: "12px 30px",
-              fontSize: 18,
-              fontWeight: "bold",
+              ...buttonStyle,
               background: "linear-gradient(45deg, #0f0, #0a0)",
-              border: "none",
-              borderRadius: 25,
-              boxShadow: "0 0 20px rgba(0,255,0,0.3)"
+              color: "#000"
             }}
-            onClick={handleStart}
+            onClick={onGuestReady}
           >
-            🚀 Start Game
+            ✅ I'm Ready!
           </button>
-        )}
-        {running && (
+        </div>
+      );
+    }
+
+    // Host Start Button
+    if (isHost && gamePhase === "ready" && guestReady) {
+      return (
+        <div style={{ textAlign: "center", margin: "20px 0" }}>
           <button
-            className="pong-btn"
             style={{
-              padding: "10px 25px",
-              fontSize: 16,
-              background: "linear-gradient(45deg, #f44, #a22)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 25
+              ...buttonStyle,
+              background: "linear-gradient(45deg, #0ff, #0aa)",
+              color: "#000"
             }}
-            onClick={() => setRunning(false)}
+            onClick={onHostStart}
           >
-            ⏹ Stop Game
+            🚀 Start Game!
           </button>
-        )}
-        {isPaused && running && (
-          <div style={{ 
-            color: "#ff0", 
-            fontSize: "18px", 
-            fontWeight: "bold",
-            textShadow: "0 0 10px rgba(255,255,0,0.5)"
-          }}>
-            ⏸ PAUSED
-          </div>
-        )}
+        </div>
+      );
+    }
+
+    // Waiting states
+    if (gamePhase === "waiting" || gamePhase === "countdown") {
+      return (
+        <div style={{ 
+          textAlign: "center", 
+          margin: "20px 0", 
+          color: "#666",
+          fontSize: "14px"
+        }}>
+          {gamePhase === "waiting" && "⏳ Waiting for players..."}
+          {gamePhase === "countdown" && "🚀 Game starting..."}
+        </div>
+      );
+    }
+
+    // Game in progress - no controls needed
+    if (gamePhase === "playing") {
+      return null;
+    }
+  }
+
+  // SINGLE PLAYER AND TWO PLAYER CONTROLS
+  if (winner) return null;
+
+  if (!running) {
+    return (
+      <div style={{ textAlign: "center", margin: "20px 0" }}>
+        <button
+          style={{
+            ...buttonStyle,
+            background: "linear-gradient(45deg, #0f0, #0a0)",
+            color: "#000"
+          }}
+          onClick={handleStart}
+        >
+          🚀 Start Game
+        </button>
       </div>
-    </>
+    );
+  }
+
+  return (
+    <div style={{ 
+      textAlign: "center", 
+      margin: "20px 0",
+      display: "flex",
+      gap: "15px",
+      justifyContent: "center",
+      flexWrap: "wrap"
+    }}>
+      <button
+        style={{
+          ...buttonStyle,
+          background: isPaused ? "linear-gradient(45deg, #0f0, #0a0)" : "linear-gradient(45deg, #ff0, #aa0)",
+          color: "#000",
+          fontSize: "14px",
+          padding: "10px 20px"
+        }}
+        onClick={() => setRunning(!isPaused)}
+      >
+        {isPaused ? "▶️ Resume" : "⏸️ Pause"}
+      </button>
+      
+      <button
+        style={{
+          ...buttonStyle,
+          background: "linear-gradient(45deg, #f44, #a22)",
+          color: "#fff",
+          fontSize: "14px",
+          padding: "10px 20px"
+        }}
+        onClick={() => {
+          setRunning(false);
+          if (handleStart) handleStart(); // Reset game
+        }}
+      >
+        🔄 Restart
+      </button>
+    </div>
   );
 }

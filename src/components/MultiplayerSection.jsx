@@ -9,10 +9,7 @@ export default function MultiplayerSection({
   startMultiplayer, 
   socket,
   setMultiplayer,
-  gamePhase,
-  guestReady,
-  onGuestReady,
-  onHostStart
+  gamePhase
 }) {
   const [roomInput, setRoomInput] = useState("");
 
@@ -115,50 +112,9 @@ export default function MultiplayerSection({
         {gamePhase === "waiting" && players < 2 && (
           <span style={{ color: "#ff0" }}>⏳ Waiting for opponent...</span>
         )}
-        {gamePhase === "ready" && players === 2 && !isHost && !guestReady && (
-          <div style={{ margin: "15px 0" }}>
-            <div style={{ color: "#0f0", marginBottom: "10px" }}>
-              🎮 Ready to play? Let the host know!
-            </div>
-            <button 
-              className="pong-btn"
-              onClick={onGuestReady}
-              style={{ 
-                background: "linear-gradient(45deg, #0f0, #0a0)",
-                fontSize: "16px",
-                padding: "12px 24px"
-              }}
-            >
-              ✅ I'm Ready!
-            </button>
-          </div>
-        )}
-        {gamePhase === "ready" && guestReady && !isHost && (
+        {gamePhase === "ready" && players === 2 && (
           <span style={{ color: "#0f0" }}>
-            ✅ You're ready! Waiting for host to start...
-          </span>
-        )}
-        {gamePhase === "ready" && isHost && guestReady && (
-          <div style={{ margin: "15px 0" }}>
-            <div style={{ color: "#0f0", marginBottom: "10px" }}>
-              🎮 Guest is ready! You can start the game.
-            </div>
-            <button 
-              className="pong-btn"
-              onClick={onHostStart}
-              style={{ 
-                background: "linear-gradient(45deg, #0ff, #0aa)",
-                fontSize: "16px",
-                padding: "12px 24px"
-              }}
-            >
-              🚀 Start Game!
-            </button>
-          </div>
-        )}
-        {gamePhase === "ready" && isHost && !guestReady && (
-          <span style={{ color: "#ff0" }}>
-            ⏳ Waiting for guest to be ready...
+            🎮 Both players connected! {isHost ? "You can start when guest is ready." : "Get ready to play!"}
           </span>
         )}
         {gamePhase === "countdown" && (
