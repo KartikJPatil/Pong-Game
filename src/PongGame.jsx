@@ -794,6 +794,7 @@ export default function PongGame() {
           boardAreaRef={boardAreaRef}
         />
 
+        {/* UPDATED: Single TouchControls component handles all modes */}
         <TouchControls 
           player="left" 
           boardRect={boardRect}
@@ -803,20 +804,9 @@ export default function PongGame() {
           touchDirR={touchDirR}
           setTouchDirL={setTouchDirL}
           setTouchDirR={setTouchDirR}
+          running={running}
+          winner={winner}
         />
-        
-        {(twoPlayer && !multiplayer) && 
-          <TouchControls 
-            player="right" 
-            boardRect={boardRect}
-            twoPlayer={twoPlayer}
-            multiplayer={multiplayer}
-            touchDirL={touchDirL}
-            touchDirR={touchDirR}
-            setTouchDirL={setTouchDirL}
-            setTouchDirR={setTouchDirR}
-          />
-        }
 
         <GameControls 
           running={running}
