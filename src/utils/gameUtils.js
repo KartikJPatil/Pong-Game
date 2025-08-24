@@ -1,9 +1,4 @@
-// Make sure your SOCKET_URL is correct
-export const SOCKET_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://YOUR-RENDER-SERVER-URL.onrender.com'  // Replace with your actual Render URL
-  : 'http://localhost:4000';
-
-// Other existing exports...
+// Game Constants
 export const GAME_CONSTANTS = {
   WIDTH: 800,
   HEIGHT: 400,
@@ -15,6 +10,24 @@ export const GAME_CONSTANTS = {
   TRAIL_LEN: 8
 };
 
+// Individual exports for easier access
+export const { 
+  WIDTH, 
+  HEIGHT, 
+  PADDLE_HEIGHT, 
+  PADDLE_WIDTH, 
+  BALL_SIZE, 
+  BASE_PADDLE_SPEED, 
+  BASE_BALL_SPEED, 
+  TRAIL_LEN 
+} = GAME_CONSTANTS;
+
+// Socket URL Configuration
+export const SOCKET_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://YOUR-RENDER-SERVER-URL.onrender.com'  // Replace with your actual Render URL
+  : 'http://localhost:4000';
+
+// Utility Functions
 export function clamp(value, min, max) {
   return Math.min(Math.max(value, min), max);
 }
