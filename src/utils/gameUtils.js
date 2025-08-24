@@ -24,7 +24,7 @@ export const {
 
 // ✅ FIXED: Replace with your ACTUAL Render URL
 export const SOCKET_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://your-actual-render-app-name.onrender.com'  // ← PUT YOUR REAL URL HERE
+  ? 'https://pong-game-backend-b100.onrender.com'  // ← PUT YOUR REAL URL HERE
   : 'http://localhost:4000';
 
 // Utility Functions
