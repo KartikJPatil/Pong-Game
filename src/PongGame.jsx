@@ -16,57 +16,18 @@ import Controls from "./components/Controls";
 import KeyConfig from "./components/KeyConfig";
 import Leaderboard from "./components/Leaderboard";
 
-// FIXED: Direct constants declaration to avoid import issues
-const GAME_CONSTANTS = {
-  WIDTH: 800,
-  HEIGHT: 400,
-  PADDLE_HEIGHT: 100,
-  PADDLE_WIDTH: 20,
-  BALL_SIZE: 20,
-  BASE_PADDLE_SPEED: 8,
-  BASE_BALL_SPEED: 5,
-  TRAIL_LEN: 8
-};
-
-const { WIDTH, HEIGHT, PADDLE_HEIGHT, PADDLE_WIDTH, BALL_SIZE, BASE_PADDLE_SPEED, BASE_BALL_SPEED, TRAIL_LEN } = GAME_CONSTANTS;
-
-const SOCKET_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://YOUR-RENDER-SERVER-URL.onrender.com'  // Replace with your actual Render URL
-  : 'http://localhost:4000';
-
-// Utility functions
-function clamp(value, min, max) {
-  return Math.min(Math.max(value, min), max);
-}
-
-function getBallSpeed(difficulty) {
-  return BASE_BALL_SPEED + (difficulty - 1) * 0.5;
-}
-
-function playBeep(frequency, duration, volume, isMuted) {
-  if (isMuted) return;
-  try {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-    const oscillator = audioContext.createOscillator();
-    const gainNode = audioContext.createGain();
-    
-    oscillator.connect(gainNode);
-    gainNode.connect(audioContext.destination);
-    
-    oscillator.frequency.value = frequency;
-    oscillator.type = 'square';
-    
-    gainNode.gain.setValueAtTime(volume, audioContext.currentTime);
-    gainNode.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + duration / 1000);
-    
-    oscillator.start();
-    oscillator.stop(audioContext.currentTime + duration / 1000);
-  } catch (error) {
-    console.warn('Audio playback failed:', error);
-  }
-}
+// FIXED: Import from gameUtils.js
+import { 
+  GAME_CONSTANTS, 
+  clamp, 
+  getBallSpeed, 
+  playBeep, 
+  SOCKET_URL 
+} from "./utils/gameUtils";
 
 import "./PongGame.css";
+
+const { WIDTH, HEIGHT, PADDLE_HEIGHT, PADDLE_WIDTH, BALL_SIZE, BASE_PADDLE_SPEED, BASE_BALL_SPEED, TRAIL_LEN } = GAME_CONSTANTS;
 
 export default function PongGame() {
   // State variables
@@ -122,7 +83,7 @@ export default function PongGame() {
   const [players, setPlayers] = useState(1);
   const [side, setSide] = useState("");
 
-  // FIXED: Enhanced Multiplayer States
+  // Enhanced Multiplayer States
   const [guestReady, setGuestReady] = useState(false);
   const [hostReady, setHostReady] = useState(false);
   const [countdown, setCountdown] = useState(0);
@@ -235,7 +196,7 @@ export default function PongGame() {
     }
   }, [score, winner]);
 
-  // FIXED: Countdown effect
+  // Countdown effect
   useEffect(() => {
     if (countdown > 0) {
       countdownRef.current = setTimeout(() => {
@@ -258,7 +219,7 @@ export default function PongGame() {
     };
   }, [countdown, isMuted]);
 
-  // ENHANCED: Multiplayer functions with ready system
+  // Multiplayer functions with ready system
   function startMultiplayer(roomCode) {
     if (socket && room === roomCode && socket.connected) {
       console.log("Already connected to room:", roomCode);
@@ -361,7 +322,7 @@ export default function PongGame() {
       setPlayMoreRequest(null);
     });
 
-    // FIXED: State synchronization for guest
+    // State synchronization for guest
     s.on("state_update", (state) => {
       console.log("Received state update:", state);
       if (!isHost) { // Only guest receives state updates
@@ -495,7 +456,7 @@ export default function PongGame() {
     aiTargetRef.current = HEIGHT/2;
   }
 
-  // FIXED: handleStart function for single/two-player modes only
+  // handleStart function for single/two-player modes only
   function handleStart() {
     if (!multiplayer) {
       resetGame();
@@ -776,7 +737,7 @@ export default function PongGame() {
         setPowerUpTimer(t => t+1);
       }
 
-      // CRITICAL: Send complete game state to guest every frame
+      // Send complete game state to guest every frame
       if (multiplayer && isHost && socket && socket.connected) {
         socket.emit("sync_state", { 
           room, 
