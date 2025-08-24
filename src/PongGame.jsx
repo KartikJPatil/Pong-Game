@@ -794,7 +794,7 @@ export default function PongGame() {
           boardAreaRef={boardAreaRef}
         />
 
-        {/* UPDATED: Single TouchControls component handles all modes */}
+        {/* TouchControls - ONLY for Two-Player Mode */}
         <TouchControls 
           player="left" 
           boardRect={boardRect}

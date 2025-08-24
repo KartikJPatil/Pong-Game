@@ -15,14 +15,11 @@ export default function TouchControls({
   const [leftSwipeActive, setLeftSwipeActive] = useState(null);
   const [rightSwipeActive, setRightSwipeActive] = useState(null);
   const touchStartRef = useRef({ x: 0, y: 0, time: 0 });
-  const swipeTimeoutRef = useRef(null);
 
-  // Clear swipe timeout on unmount
+  // Clear references on unmount
   useEffect(() => {
     return () => {
-      if (swipeTimeoutRef.current) {
-        clearTimeout(swipeTimeoutRef.current);
-      }
+      touchStartRef.current = null;
     };
   }, []);
 
@@ -34,12 +31,13 @@ export default function TouchControls({
     touchStartRef.current = { 
       x: touch.clientX, 
       y: touch.clientY, 
-      time: Date.now() 
+      time: Date.now(),
+      side: side 
     };
   };
 
   // Handle touch move to detect swipe direction
-  const handleTouchMove = (side) => (e) => {
+  const handleTouchMove = (e) => {
     if (!touchStartRef.current) return;
     
     const touch = e.touches[0];
@@ -53,7 +51,7 @@ export default function TouchControls({
     if (Math.abs(deltaY) > 40) {
       const direction = deltaY > 0 ? 1 : -1; // Down: 1, Up: -1
       
-      if (side === 'left') {
+      if (touchStartRef.current.side === 'left') {
         setTouchDirL(direction);
         setLeftSwipeActive(direction > 0 ? 'down' : 'up');
       } else {
@@ -64,12 +62,14 @@ export default function TouchControls({
   };
 
   // Handle touch end to stop paddle movement
-  const handleTouchEnd = (side) => (e) => {
+  const handleTouchEnd = (e) => {
     e.preventDefault();
     e.stopPropagation();
     
+    if (!touchStartRef.current) return;
+    
     // Clear movement immediately
-    if (side === 'left') {
+    if (touchStartRef.current.side === 'left') {
       setTouchDirL(0);
       setLeftSwipeActive(null);
     } else {
@@ -80,51 +80,9 @@ export default function TouchControls({
     touchStartRef.current = null;
   };
 
-  // Don't show controls if game not running or winner declared
-  if (!running || winner) return null;
-
-  // Single player mode - only show left swipe area
-  if (!twoPlayer || multiplayer) {
-    return (
-      <div
-        style={{
-          position: 'fixed',
-          left: 0,
-          top: 0,
-          width: '120px',
-          height: '100vh',
-          background: leftSwipeActive 
-            ? leftSwipeActive === 'up' 
-              ? 'rgba(0,255,255,0.4)' 
-              : 'rgba(0,255,255,0.3)'
-            : 'rgba(0,255,255,0.08)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '16px',
-          color: '#0ff',
-          zIndex: 999,
-          userSelect: 'none',
-          backdropFilter: 'blur(3px)',
-          flexDirection: 'column',
-          border: '2px solid rgba(0,255,255,0.2)',
-          borderLeft: 'none',
-          borderRadius: '0 15px 15px 0',
-          transition: 'background 0.2s ease'
-        }}
-        onTouchStart={handleTouchStart('left')}
-        onTouchMove={handleTouchMove('left')}
-        onTouchEnd={handleTouchEnd('left')}
-        onTouchCancel={handleTouchEnd('left')}
-      >
-        <div style={{ marginBottom: '10px', fontSize: '24px' }}>
-          {leftSwipeActive === 'up' ? '⬆️' : leftSwipeActive === 'down' ? '⬇️' : '↕️'}
-        </div>
-        <div style={{ fontSize: '12px', textAlign: 'center', opacity: 0.8 }}>
-          {leftSwipeActive ? `${leftSwipeActive.toUpperCase()}` : 'SWIPE'}
-        </div>
-      </div>
-    );
+  // Only show swipe controls for two-player mode (not single-player or multiplayer)
+  if (!twoPlayer || multiplayer || !running || winner) {
+    return null;
   }
 
   // Two player mode - split screen swipe areas
@@ -156,9 +114,9 @@ export default function TouchControls({
           transition: 'background 0.1s ease'
         }}
         onTouchStart={handleTouchStart('left')}
-        onTouchMove={handleTouchMove('left')}
-        onTouchEnd={handleTouchEnd('left')}
-        onTouchCancel={handleTouchEnd('left')}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <div style={{ marginBottom: '15px', fontSize: '32px' }}>
           {leftSwipeActive === 'up' ? '⬆️' : leftSwipeActive === 'down' ? '⬇️' : '🎮'}
@@ -200,9 +158,9 @@ export default function TouchControls({
           transition: 'background 0.1s ease'
         }}
         onTouchStart={handleTouchStart('right')}
-        onTouchMove={handleTouchMove('right')}
-        onTouchEnd={handleTouchEnd('right')}
-        onTouchCancel={handleTouchEnd('right')}
+        onTouchMove={handleTouchMove}
+        onTouchEnd={handleTouchEnd}
+        onTouchCancel={handleTouchEnd}
       >
         <div style={{ marginBottom: '15px', fontSize: '32px' }}>
           {rightSwipeActive === 'up' ? '⬆️' : rightSwipeActive === 'down' ? '⬇️' : '🎮'}
