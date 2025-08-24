@@ -1,28 +1,33 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect } from 'react';
 
-export default function ConditionalOrientationGuard({ children, twoPlayer }) {
-  const [isMobile, setIsMobile] = useState(window.innerWidth <= 768);
-  const [isLandscape, setIsLandscape] = useState(window.innerHeight < window.innerWidth);
+export default function ConditionalOrientationGuard({ twoPlayer, children }) {
+  const [isLandscape, setIsLandscape] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
-    const handleOrientationChange = () => {
-      setIsMobile(window.innerWidth <= 768);
-      setIsLandscape(window.innerHeight < window.innerWidth);
+    const checkOrientation = () => {
+      const isLandscapeMode = window.innerWidth > window.innerHeight;
+      const isMobileDevice = window.innerWidth <= 768; // Mobile breakpoint
+      
+      setIsLandscape(isLandscapeMode);
+      setIsMobile(isMobileDevice);
     };
 
-    window.addEventListener('resize', handleOrientationChange);
-    window.addEventListener('orientationchange', handleOrientationChange);
-    
-    handleOrientationChange();
-    
+    checkOrientation();
+    window.addEventListener('resize', checkOrientation);
+    window.addEventListener('orientationchange', () => {
+      // Add delay for orientation change to complete
+      setTimeout(checkOrientation, 100);
+    });
+
     return () => {
-      window.removeEventListener('resize', handleOrientationChange);
-      window.removeEventListener('orientationchange', handleOrientationChange);
+      window.removeEventListener('resize', checkOrientation);
+      window.removeEventListener('orientationchange', checkOrientation);
     };
   }, []);
 
-  // Only show rotation prompt for mobile users in 2-player mode who are in portrait
-  if (isMobile && twoPlayer && !isLandscape) {
+  // Only show orientation guard for two-player mode on mobile devices
+  if (twoPlayer && isMobile && !isLandscape) {
     return (
       <div style={{
         position: 'fixed',
@@ -30,68 +35,47 @@ export default function ConditionalOrientationGuard({ children, twoPlayer }) {
         left: 0,
         right: 0,
         bottom: 0,
-        background: 'linear-gradient(145deg, #1a1a2e, #16213e)',
-        color: '#0ff',
+        background: 'linear-gradient(135deg, #1a1a2e, #16213e)',
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
         justifyContent: 'center',
+        zIndex: 9999,
+        color: '#fff',
         textAlign: 'center',
-        padding: '20px',
-        zIndex: 9999
+        padding: '20px'
       }}>
         <div style={{
-          fontSize: '4em',
+          fontSize: '48px',
           marginBottom: '20px',
-          animation: 'bounce 2s infinite'
+          animation: 'rotate 2s infinite linear'
         }}>
           📱 ↻
         </div>
-        <h2 style={{ 
-          fontSize: '1.5em', 
-          marginBottom: '15px',
-          textShadow: '0 0 10px rgba(0,255,255,0.5)'
+        <h2 style={{
+          fontSize: '24px',
+          marginBottom: '16px',
+          color: '#0ff'
         }}>
-          Rotate for 2-Player Mode
+          Please Rotate Your Device
         </h2>
-        <p style={{ 
-          fontSize: '1.1em', 
+        <p style={{
+          fontSize: '16px',
           opacity: 0.8,
           maxWidth: '300px',
-          lineHeight: '1.4',
-          marginBottom: '20px'
+          lineHeight: '1.4'
         }}>
-          Two-player mode requires landscape orientation for the best experience. 
-          Please rotate your device to continue.
+          For the best two-player experience, please rotate your device to landscape mode.
         </p>
-        
-        <div style={{
-          background: 'rgba(255,255,255,0.1)',
-          padding: '15px',
-          borderRadius: '10px',
-          border: '1px solid rgba(0,255,255,0.3)'
-        }}>
-          <p style={{ 
-            fontSize: '0.9em', 
-            color: '#aaa', 
-            margin: 0 
-          }}>
-            💡 Tip: Single-player mode works great in portrait too!
-          </p>
-        </div>
-        
         <style jsx>{`
-          @keyframes bounce {
-            0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
-            40% { transform: translateY(-30px); }
-            60% { transform: translateY(-15px); }
+          @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
           }
         `}</style>
       </div>
     );
   }
 
-  // For all other cases, just render the game
   return children;
 }
-    
