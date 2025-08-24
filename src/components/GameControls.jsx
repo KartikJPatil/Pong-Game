@@ -3,14 +3,8 @@ import React from "react";
 export default function GameControls({ 
   running, 
   winner, 
-  isPaused, 
-  theme, 
-  keyMap,
-  twoPlayer,
   multiplayer,
   handleStart,
-  setRunning,
-  // Multiplayer ready system props
   gamePhase,
   guestReady,
   isHost,
@@ -69,47 +63,27 @@ export default function GameControls({
     }
 
     // Waiting states
-    if (gamePhase === "waiting" || gamePhase === "countdown") {
-      return (
-        <div style={{ 
-          textAlign: "center", 
-          margin: "20px 0", 
-          color: "#666",
-          fontSize: "14px"
-        }}>
-          {gamePhase === "waiting" && "⏳ Waiting for players..."}
-          {gamePhase === "countdown" && "🚀 Game starting..."}
-        </div>
-      );
-    }
-
-    // Game in progress - no controls needed
-    if (gamePhase === "playing") {
-      return null;
+    if (gamePhase === "waiting" || gamePhase === "countdown" || gamePhase === "playing") {
+      return null; // Show nothing during these phases
     }
   }
 
   // SINGLE PLAYER AND TWO PLAYER CONTROLS
-  if (winner) return null;
+  if (winner || running) return null; // Show nothing if game is running or finished
 
   // Only show Start Game button when game is not running
-  if (!running) {
-    return (
-      <div style={{ textAlign: "center", margin: "20px 0" }}>
-        <button
-          style={{
-            ...buttonStyle,
-            background: "linear-gradient(45deg, #0f0, #0a0)",
-            color: "#000"
-          }}
-          onClick={handleStart}
-        >
-          🚀 Start Game
-        </button>
-      </div>
-    );
-  }
-
-  // Game is running - no controls shown (Pause/Restart removed)
-  return null;
+  return (
+    <div style={{ textAlign: "center", margin: "20px 0" }}>
+      <button
+        style={{
+          ...buttonStyle,
+          background: "linear-gradient(45deg, #0f0, #0a0)",
+          color: "#000"
+        }}
+        onClick={handleStart}
+      >
+        🚀 Start Game
+      </button>
+    </div>
+  );
 }

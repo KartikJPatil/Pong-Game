@@ -3,7 +3,6 @@ import React from "react";
 export default function Controls({
   difficulty, setDifficulty,
   theme, setTheme,
-  isPaused, onPauseToggle,
   isMuted, onMuteToggle,
   twoPlayer, setTwoPlayer,
   showKeyConfig, setShowKeyConfig,
@@ -102,26 +101,8 @@ export default function Controls({
         flexDirection: "column",
         gap: "12px"
       }}>
-        <button
-          onClick={onPauseToggle}
-          style={{
-            padding: "10px 20px",
-            borderRadius: "20px",
-            border: "none",
-            background: isPaused ? 
-              "linear-gradient(45deg, #ff4444, #cc2222)" :
-              "linear-gradient(45deg, #ffaa00, #cc8800)",
-            color: "#fff",
-            fontWeight: "bold",
-            cursor: "pointer",
-            fontSize: "0.9em",
-            transition: "all 0.3s ease",
-            boxShadow: "0 2px 10px rgba(0,0,0,0.3)"
-          }}
-        >
-          {isPaused ? "⏸ Paused" : "⏯ Pause"}
-        </button>
-
+        {/* REMOVED: Pause button - completely deleted */}
+        
         <button
           onClick={onMuteToggle}
           disabled={disabled}
